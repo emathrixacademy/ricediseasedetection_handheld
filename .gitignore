@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Models & data (large binaries — keep out of git)
+*.pt
+*.onnx
+*.hef
+*.tflite
+pi5/data/images/*
+!pi5/data/images/.gitkeep
+pi5/models/*
+!pi5/models/.gitkeep
+training/dataset/raw/**/*
+!training/dataset/raw/**/.gitkeep
+training/dataset/annotated/*
+!training/dataset/annotated/.gitkeep
+training/dataset/augmented/*
+!training/dataset/augmented/.gitkeep
+training/models/
+runs/
+tensorboard/
+
+# PlatformIO / ESP32
+esp32/.pio/
+.pio/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets
+.env
+*.local

@@ -1,0 +1,36 @@
+# Training configuration for the rice disease classifier.
+
+# Core hyperparameters
+batch_size: 32
+epochs: 50
+lr: 0.001
+weight_decay: 0.0001
+image_size: 224
+num_classes: 6
+optimizer: adam            # adam | sgd
+backbone: mobilen_v3_small # mobilenet_v3_small | efficientnet_b0
+num_workers: 4
+seed: 42
+
+# Dataset split ratios (must sum to 1.0)
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+
+# Filesystem paths (relative to the training/ directory)
+paths:
+  dataset_raw: dataset/raw
+  dataset_annotated: dataset/annotated
+  dataset_augmented: dataset/augmented
+  models_dir: models
+  tensorboard_dir: runs
+
+# Class names, index order MUST match training labels (0-5)
+class_names:
+  - healthy
+  - rice_blast
+  - bacterial_leaf_blight
+  - nitrogen_deficiency
+  - water_deficit
+  - heat_stress
