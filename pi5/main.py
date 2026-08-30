@@ -12,6 +12,7 @@ mode so the flow can be exercised anywhere.
 """
 
 import os
+import sys
 import time
 import uuid
 
@@ -76,6 +77,68 @@ class RiceScanner:
             self.lcd.init()
 
         os.makedirs(config.IMAGE_DIR, exist_ok=True)
+
+        # -- degradation accounting -----------------------------------------
+        # A fallback that nobody can see is indistinguishable from success.
+        # Record every subsystem that is absent or running on mock data.
+        self.degraded = self._collect_degraded()
+        self.mock = bool(self.degraded)
+        self._report_degradation()
+
+    def _collect_degraded(self):
+        """Return the sorted names of subsystems that are absent or mocked."""
+        degraded = set()
+
+        for name, obj, cls in (
+            ("rgb_camera", self.rgb_cam, RGBCapture),
+            ("nir_camera", self.nir_cam, NIRCapture),
+            ("rgb_classifier", self.rgb_clf, RGBClassifier),
+            ("nir_classifier", self.nir_clf, NIRClassifier),
+            ("uart", self.uart, UARTBridge),
+            ("lcd", self.lcd, LCDDriver),
+        ):
+            if cls is None or obj is None:
+                degraded.add(f"{name}:unavailable")
+            elif getattr(obj, "mock", False):
+                degraded.add(f"{name}:mock")
+
+        if DecisionFusion is None or self.fusion is None:
+            degraded.add("fusion:unavailable")
+        if db_pkg is None:
+            degraded.add("database:unavailable")
+
+        return sorted(degraded)
+
+    def _report_degradation(self):
+        """Print degradation state; abort if nothing at all came up.
+
+        Exiting 0 after silently disabling every subsystem is the defect being
+        removed here -- a scan that produced nothing must not look like a pass.
+        """
+        core = ("rgb_camera", "nir_camera", "rgb_classifier",
+                "nir_classifier", "uart", "lcd")
+        dead = [n for n in core
+                if f"{n}:unavailable" in self.degraded]
+
+        if not self.degraded:
+            print("[main] all subsystems nominal")
+            return
+
+        print(f"[main] DEGRADED -- {len(self.degraded)} subsystem(s) "
+              f"not fully operational:")
+        for entry in self.degraded:
+            name, _, why = entry.partition(":")
+            note = ("package/hardware missing" if why == "unavailable"
+                    else "running on SIMULATED data")
+            print(f"[main]   - {name}: {note}")
+
+        if len(dead) == len(core):
+            print("[main] FATAL: every subsystem failed to initialise. "
+                  "Nothing can be measured.", file=sys.stderr)
+            print("[main] If launched as 'python pi5/main.py', use "
+                  "'python -m pi5.main' from the project root instead.",
+                  file=sys.stderr)
+            raise SystemExit(2)
 
     # -- helpers -------------------------------------------------------------
 
@@ -155,6 +218,17 @@ class RiceScanner:
                 "final_confidence": fallback.get("confidence", 0.0),
             }
 
+        # Per-scan provenance: a reading is mock if any contributing subsystem
+        # was mocked, including a biosensor reply synthesised by the bridge.
+        scan_degraded = list(self.degraded)
+        if isinstance(biosensor, dict) and biosensor.get("mock"):
+            if "uart:mock" not in scan_degraded:
+                scan_degraded.append("uart:mock")
+        if isinstance(biosensor, dict) and biosensor.get("type") == "timeout":
+            scan_degraded.append("biosensor:timeout")
+            print(f"[main] WARNING: biosensor {biosensor.get('message')}")
+        scan_mock = bool(scan_degraded)
+
         result.update({
             "rgb": rgb_res,
             "nir": nir_res,
@@ -163,6 +237,8 @@ class RiceScanner:
             "fused": fused,
             "rgb_path": rgb_path if self.rgb_cam else None,
             "nir_path": nir_path if self.nir_cam else None,
+            "mock": scan_mock,
+            "degraded": sorted(scan_degraded),
         })
 
         # 5. Display
@@ -170,6 +246,7 @@ class RiceScanner:
             self.lcd.show_result(
                 fused.get("final_diagnosis", "unknown"),
                 float(fused.get("final_confidence", 0.0)),
+                mock=scan_mock,
             )
         if self.uart:
             try:
@@ -206,6 +283,8 @@ class RiceScanner:
                     biosensor_signal=result.get("biosensor_signal"),
                     final_diagnosis=fused.get("final_diagnosis"),
                     final_confidence=fused.get("final_confidence"),
+                    mock=bool(result.get("mock")),
+                    degraded=",".join(result.get("degraded") or []) or None,
                 ))
             print(f"[main] logged scan {result['scan_id']} to db")
         except Exception as exc:
@@ -256,4 +335,8 @@ if __name__ == "__main__":
     print(f"Confidence  : {float(fused.get('final_confidence', 0.0)):.1%}")
     print(f"NDVI (mean) : {result.get('ndvi')}")
     print(f"Biosensor   : {result.get('biosensor_signal')}")
+    if result.get("mock"):
+        print("-" * 50)
+        print("*** SIMULATED RESULT -- NOT A REAL MEASUREMENT ***")
+        print(f"Degraded    : {', '.join(result.get('degraded') or [])}")
     scanner.close()

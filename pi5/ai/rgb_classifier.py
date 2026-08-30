@@ -25,6 +25,8 @@ class RGBClassifier:
     def __init__(self, model_path=RGB_MODEL_PATH):
         self.model = load_model(model_path)
         self.classes = CLASSES
+        # True when load_model fell back to random logits.
+        self.mock = getattr(self.model, "backend", "mock") == "mock"
 
     def preprocess(self, img):
         """Resize to 224x224, scale to [0,1], normalize, return NCHW float32."""
@@ -69,6 +71,7 @@ class RGBClassifier:
             "confidence": float(probs[idx]),
             "probs": {c: float(p) for c, p in zip(self.classes, probs)},
             "processing_time_ms": round(elapsed_ms, 2),
+            "mock": self.mock,
         }
 
 

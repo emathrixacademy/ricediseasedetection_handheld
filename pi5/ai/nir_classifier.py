@@ -29,6 +29,8 @@ class NIRClassifier:
     def __init__(self, model_path=NIR_MODEL_PATH):
         self.model = load_model(model_path)
         self.classes = CLASSES
+        # True when load_model fell back to random logits.
+        self.mock = getattr(self.model, "backend", "mock") == "mock"
 
     @staticmethod
     def _resize(arr, size):
@@ -84,6 +86,7 @@ class NIRClassifier:
             "probs": {c: float(p) for c, p in zip(self.classes, probs)},
             "ndvi_value": round(ndvi, 4),
             "processing_time_ms": round(elapsed_ms, 2),
+            "mock": self.mock,
         }
 
 

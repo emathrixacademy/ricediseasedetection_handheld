@@ -7,7 +7,17 @@ backends (e.g. SQLite in tests) so the models remain portable.
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     DeclarativeBase,
@@ -111,6 +121,11 @@ class FusedDiagnosis(Base):
     biosensor_signal: Mapped[Optional[float]] = mapped_column(Float)
     final_diagnosis: Mapped[Optional[str]] = mapped_column(String(64))
     final_confidence: Mapped[Optional[float]] = mapped_column(Float)
+    # True when any contributing subsystem was mocked. Persisted so simulated
+    # rows can never be mistaken for field data during validation.
+    mock: Mapped[bool] = mapped_column(Boolean, default=False,
+                                       server_default=text("false"))
+    degraded: Mapped[Optional[str]] = mapped_column(Text)
     diagnosed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

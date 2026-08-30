@@ -57,8 +57,16 @@ CREATE TABLE IF NOT EXISTS fused_diagnoses (
     biosensor_signal FLOAT,
     final_diagnosis  VARCHAR(50),
     final_confidence FLOAT,
+    -- Provenance: TRUE when any contributing subsystem was mocked, so
+    -- simulated rows can never be mistaken for field data.
+    mock             BOOLEAN NOT NULL DEFAULT FALSE,
+    degraded         TEXT,
     diagnosed_at     TIMESTAMP DEFAULT NOW()
 );
+
+-- Re-runnable upgrade for databases created before the provenance columns.
+ALTER TABLE fused_diagnoses ADD COLUMN IF NOT EXISTS mock BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE fused_diagnoses ADD COLUMN IF NOT EXISTS degraded TEXT;
 
 -- Device telemetry / system logs.
 CREATE TABLE IF NOT EXISTS system_logs (

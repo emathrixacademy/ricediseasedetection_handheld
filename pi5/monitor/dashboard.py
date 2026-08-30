@@ -19,6 +19,9 @@ runtime_state = {
     "last_diagnosis": "n/a",
     "last_inference_time_ms": None,
     "battery_voltage_v": None,
+    # Provenance of the last scan, mirrored from RiceScanner.run_scan().
+    "last_scan_mock": False,
+    "degraded": [],
 }
 
 
@@ -29,7 +32,22 @@ def _current_stats():
     )
     stats["scan_count"] = runtime_state["scan_count"]
     stats["last_diagnosis"] = runtime_state["last_diagnosis"]
+
+    # A simulated scan taints the whole panel, not just the telemetry tiles.
+    stats["degraded"] = list(runtime_state["degraded"])
+    if runtime_state["last_scan_mock"]:
+        stats["sources"]["last_diagnosis"] = "mock"
+        stats["mock"] = True
     return stats
+
+
+def update_from_scan(result):
+    """Mirror a RiceScanner result into the dashboard's runtime state."""
+    runtime_state["scan_count"] += 1
+    fused = result.get("fused") or {}
+    runtime_state["last_diagnosis"] = fused.get("final_diagnosis", "unknown")
+    runtime_state["last_scan_mock"] = bool(result.get("mock"))
+    runtime_state["degraded"] = list(result.get("degraded") or [])
 
 
 @app.route("/")

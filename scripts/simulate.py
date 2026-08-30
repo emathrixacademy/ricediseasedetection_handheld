@@ -383,6 +383,15 @@ def main():
     print("=" * 74)
     print("  RICE DISEASE SCANNER -- HARDWARE-IN-THE-LOOP SIMULATION")
     print("=" * 74)
+    print("  *** SIMULATED DATA -- NOT A MEASUREMENT ***")
+    print("  The electrochemical magnitudes below (peak currents, peak")
+    print("  potentials, curve shapes) are INVENTED. They come from a Gaussian")
+    print("  model chosen to look plausible, not from any cell, sample or")
+    print("  calibration. This run demonstrates PIPELINE BEHAVIOUR ONLY --")
+    print("  timing, protocol, control flow and fusion wiring. It says nothing")
+    print("  about biosensor performance, sensitivity or detection limits, and")
+    print("  no figure here may be quoted as a result.")
+    print("=" * 74)
     print(f"  Virtual ESP32 running firmware-equivalent DPV "
           f"({DPV_START_MV:+.0f}..{DPV_END_MV:+.0f} mV)")
     print(f"  Time compression : {args.speed}x"
@@ -409,8 +418,15 @@ def main():
     print()
     print(f"    total simulation wall clock: {time.time() - t0:.1f} s")
     print()
-    print("    NOTE: peak currents are illustrative, not calibrated. Absolute")
-    print("    values require Phase 7 calibration against a redox standard.")
+    print("=" * 74)
+    print("  REMINDER: ALL ELECTROCHEMICAL VALUES ABOVE ARE SIMULATED.")
+    print("  The peak currents, potentials and voltammogram are generated from")
+    print("  an invented Gaussian model. They demonstrate that the pipeline")
+    print("  carries data correctly -- NOT that the biosensor detects disease.")
+    print("  Real magnitudes require Phase 7 calibration against a redox")
+    print("  standard, followed by Phase 8 field validation. Do not quote any")
+    print("  number from this output as a project result.")
+    print("=" * 74)
 
 
 if __name__ == "__main__":

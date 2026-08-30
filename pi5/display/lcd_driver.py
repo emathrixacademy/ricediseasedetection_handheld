@@ -83,11 +83,21 @@ class LCDDriver:
                 draw.text((6, y), str(ln), fill="white")
                 y += 18
 
-    def show_result(self, diagnosis, confidence):
-        """Display a diagnosis label and confidence score."""
+    def show_result(self, diagnosis, confidence, mock=False):
+        """Display a diagnosis label and confidence score.
+
+        ``mock=True`` marks the screen as simulated. An operator must never be
+        shown a confident-looking diagnosis that came from mock subsystems
+        without knowing it.
+        """
+        lines = [f"Diagnosis:", f"  {diagnosis}", f"Confidence: {confidence:.1%}"]
+        if mock:
+            lines.append("")
+            lines.append("*** SIMULATED ***")
+            lines.append("not a real reading")
         self._render_lines(
-            [f"Diagnosis:", f"  {diagnosis}", f"Confidence: {confidence:.1%}"],
-            title="SCAN RESULT",
+            lines,
+            title="SCAN RESULT [SIM]" if mock else "SCAN RESULT",
         )
 
     def show_status(self, status):

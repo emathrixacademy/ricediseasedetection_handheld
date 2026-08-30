@@ -58,6 +58,12 @@ void UartComm::sendStatusOk() {
     Serial2.print("DATA:STATUS:OK\n");
 }
 
+void UartComm::sendStatusDegraded(const String& reason) {
+    Serial2.print("DATA:STATUS:DEGRADED:");
+    Serial2.print(reason);
+    Serial2.print("\n");
+}
+
 void UartComm::sendError(const String& msg) {
     Serial2.print("ERR:");
     Serial2.print(msg);

@@ -13,7 +13,8 @@
 //   DATA:BIOSENSOR:<peak_current_ua>,<peak_voltage_v>,<re_voltage_v>,<raw_json>
 //   DATA:BATTERY:<voltage_v>
 //   DATA:BUTTON:<1|2|3>
-//   DATA:STATUS:OK
+//   DATA:STATUS:OK                    (only when every subsystem initialised)
+//   DATA:STATUS:DEGRADED:<reason>     (a subsystem failed to initialise)
 //   ERR:<msg>
 class UartComm {
 public:
@@ -31,6 +32,7 @@ public:
     void sendBattery(float voltageV);
     void sendButton(uint8_t id);
     void sendStatusOk();
+    void sendStatusDegraded(const String& reason);
     void sendError(const String& msg);
 
 private:

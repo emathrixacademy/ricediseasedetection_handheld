@@ -64,7 +64,7 @@
       <div class="value"><span id="scan_count">--</span></div>
     </div>
     <div class="card">
-      <div class="label">Last Diagnosis</div>
+      <div class="label">Last Diagnosis<span id="tag_diagnosis"></span></div>
       <div class="value" style="font-size:18px"><span id="last_diagnosis">--</span></div>
     </div>
     <div class="card">
@@ -85,7 +85,8 @@
     // Field-level provenance: never let a synthesised value read as live data.
     const TAG_IDS = { battery_voltage_v: "tag_battery",
                       cpu_temp_c: "tag_cpu_temp",
-                      memory_usage_pct: "tag_memory" };
+                      memory_usage_pct: "tag_memory",
+                      last_diagnosis: "tag_diagnosis" };
 
     function applyProvenance(d) {
       const src = d.sources || {};
@@ -107,9 +108,14 @@
         .map(([k]) => k.replace(/_/g, " "));
       const banner = document.getElementById("mock_banner");
       banner.classList.toggle("show", mocked.length > 0);
-      document.getElementById("mock_detail").textContent = mocked.length
+      let detail = mocked.length
         ? "Placeholder values, no sensor attached: " + mocked.join(", ")
         : "";
+      if ((d.degraded || []).length) {
+        detail += (detail ? " | " : "") +
+                  "Degraded subsystems: " + d.degraded.join(", ");
+      }
+      document.getElementById("mock_detail").textContent = detail;
     }
 
     async function refresh() {

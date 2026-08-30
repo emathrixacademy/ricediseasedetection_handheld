@@ -100,6 +100,10 @@ def load_model(path, num_classes=NUM_CLASSES):
     Falls back to a random-logit mock when the file or backend is missing.
     """
     if not path or not os.path.exists(path):
+        # Loud, not silent: a missing model means every prediction downstream
+        # is a random number, and that must be visible in the process output.
+        print(f"[model_loader] WARNING: no model at {path!r} -- "
+              f"falling back to RANDOM MOCK predictions")
         return _mock_wrapper(num_classes)
 
     ext = os.path.splitext(path)[1].lower()
@@ -111,8 +115,12 @@ def load_model(path, num_classes=NUM_CLASSES):
         if ext == ".onnx" and _HAS_ONNX:
             return _load_onnx(path)
     except Exception as exc:  # pragma: no cover - defensive
-        print(f"[model_loader] failed to load {path}: {exc}; using mock")
+        print(f"[model_loader] WARNING: failed to load {path}: {exc}; "
+              f"falling back to RANDOM MOCK predictions")
+        return _mock_wrapper(num_classes)
 
+    print(f"[model_loader] WARNING: no backend available for {path!r} "
+          f"(ext {ext}) -- falling back to RANDOM MOCK predictions")
     return _mock_wrapper(num_classes)
 
 

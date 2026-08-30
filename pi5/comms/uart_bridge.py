@@ -154,9 +154,19 @@ class UARTBridge:
                 return {"type": "button", "button": None, "raw": line}
 
         if line.startswith("DATA:STATUS:"):
-            return {"type": "status",
-                    "status": line[len("DATA:STATUS:"):],
-                    "raw": line}
+            payload = line[len("DATA:STATUS:"):]
+            result = {"type": "status", "status": payload, "raw": line}
+            # DATA:STATUS:DEGRADED:<reason> -- a subsystem failed to init.
+            # Must never be flattened into a plain "not OK"; the reason is
+            # what tells the operator which device is dead.
+            if payload.startswith("DEGRADED"):
+                _, _, reason = payload.partition(":")
+                result["status"] = "DEGRADED"
+                result["degraded"] = True
+                result["reason"] = reason or "UNSPECIFIED"
+            else:
+                result["degraded"] = False
+            return result
 
         return {"type": "unknown", "raw": line}
 

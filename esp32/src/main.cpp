@@ -23,8 +23,30 @@ Buttons      buttons;
 Led          led;
 UartComm     uart;
 
+// ----- Analog front-end readiness -----
+// Latched at boot. A failed ADC or DAC init must never present as a healthy
+// device: without these flags the firmware answers DATA:STATUS:OK and returns
+// 0.00 uA scans, which look like real measurements of an inert sample.
+static bool adcReady = false;
+static bool dacReady = false;
+static bool afeReady = false;
+
+// Reason string for CMD:STATUS when the front end is degraded.
+static String afeFaultReason() {
+    if (!adcReady && !dacReady) return "ADC_AND_DAC_INIT";
+    if (!adcReady)              return "ADC_INIT";
+    if (!dacReady)              return "DAC_INIT";
+    return "";
+}
+
 // Perform a DPV scan and report the result to the Pi.
 static void handleScan() {
+    // Refuse to sweep with a dead front end rather than returning zeros.
+    if (!afeReady) {
+        uart.sendError("AFE_NOT_READY:" + afeFaultReason());
+        return;
+    }
+
     DPVResult r = potentiostat.runDPV();
     if (r.ok) {
         uart.sendBiosensor(r.peakCurrentUA, r.peakVoltageV, r.reVoltageV, r.rawJson);
@@ -38,7 +60,11 @@ static void dispatch(const String& cmd) {
     if (cmd == "CMD:SCAN") {
         handleScan();
     } else if (cmd == "CMD:BATTERY") {
-        uart.sendBattery(adc.readBattery());
+        if (!adcReady) {
+            uart.sendError("AFE_NOT_READY:ADC_INIT");
+        } else {
+            uart.sendBattery(adc.readBattery());
+        }
     } else if (cmd == "CMD:LED:ON") {
         led.on();
         uart.sendStatusOk();
@@ -49,7 +75,12 @@ static void dispatch(const String& cmd) {
         led.blink();
         uart.sendStatusOk();
     } else if (cmd == "CMD:STATUS") {
-        uart.sendStatusOk();
+        // OK is only permitted when every subsystem initialised.
+        if (afeReady) {
+            uart.sendStatusOk();
+        } else {
+            uart.sendStatusDegraded(afeFaultReason());
+        }
     } else {
         uart.sendError("UNKNOWN_CMD");
     }
@@ -66,13 +97,17 @@ void setup() {
     // I2C bus for DAC and ADC.
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN, I2C_FREQ_HZ);
 
-    // Analog front-end.
-    if (!adc.begin()) {
+    // Analog front-end. Latch the outcome -- a failure here must stay visible
+    // for the lifetime of the session, not just scroll past on the console.
+    adcReady = adc.begin();
+    if (!adcReady) {
         Serial.println("[ERR] ADS1115 init failed");
     }
-    if (!potentiostat.begin()) {
+    dacReady = potentiostat.begin();
+    if (!dacReady) {
         Serial.println("[ERR] MCP4725 init failed");
     }
+    afeReady = adcReady && dacReady;
 
     // Alert pin from ADS1115 (input; polling used, but keep configured).
     pinMode(ADS_ALERT_PIN, INPUT);
@@ -81,7 +116,15 @@ void setup() {
     buttons.begin();
     led.begin();
 
-    Serial.println("[BOOT] Ready.");
+    if (afeReady) {
+        Serial.println("[BOOT] Ready.");
+    } else {
+        // Announce degradation unprompted so the Pi knows before its first
+        // scan, and blink the LED so the fault is visible on the bench too.
+        Serial.println("[BOOT] DEGRADED: " + afeFaultReason());
+        uart.sendStatusDegraded(afeFaultReason());
+        led.blink();
+    }
 }
 
 void loop() {
