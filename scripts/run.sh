@@ -33,13 +33,17 @@ fi
 cd "${PROJECT_ROOT}"
 
 # --- start monitoring dashboard (background) --------------------------------
+# Both must be launched with -m from the project root. Running them as file
+# paths (python pi5/main.py) puts pi5/ on sys.path instead of the root, so the
+# `pi5.*` package imports fail -- main.py then silently disables every
+# subsystem and reports "unknown" instead of erroring.
 echo "Starting monitoring dashboard..."
-python pi5/monitor/dashboard.py &
+python -m pi5.monitor.dashboard &
 DASHBOARD_PID=$!
 echo "Dashboard running (pid ${DASHBOARD_PID})."
 
 # --- start main scanner loop (foreground) -----------------------------------
 echo "Starting main scanner..."
-python pi5/main.py
+python -m pi5.main
 
 # When main.py exits, the EXIT trap cleans up the dashboard.

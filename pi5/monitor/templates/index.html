@@ -20,23 +20,41 @@
     .value.accent { color: var(--accent); }
     .unit { font-size: 14px; color: var(--muted); font-weight: 400; }
     footer { margin-top: 18px; color: var(--muted); font-size: 12px; }
+    .banner {
+      display: none; background: #7c2d12; border: 1px solid #ea580c;
+      color: #fed7aa; border-radius: 10px; padding: 12px 14px;
+      margin-bottom: 18px; font-size: 14px; font-weight: 600;
+    }
+    .banner.show { display: block; }
+    .banner .detail { font-weight: 400; font-size: 12px; margin-top: 4px; color: #fdba74; }
+    .tag {
+      display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      padding: 2px 6px; border-radius: 5px; margin-left: 6px; vertical-align: middle;
+      background: #7c2d12; color: #fed7aa; border: 1px solid #ea580c;
+    }
+    .tag.sys { background: #1e3a5f; color: #bfdbfe; border-color: #3b82f6; }
   </style>
 </head>
 <body>
   <h1>Rice Disease Scanner</h1>
   <div class="sub">Live system monitor &middot; auto-refresh every 3s</div>
 
+  <div id="mock_banner" class="banner">
+    ⚠ SIMULATED DATA — not live telemetry
+    <div class="detail" id="mock_detail"></div>
+  </div>
+
   <div class="grid">
     <div class="card">
-      <div class="label">Battery</div>
+      <div class="label">Battery<span id="tag_battery"></span></div>
       <div class="value accent"><span id="battery">--</span> <span class="unit">V</span></div>
     </div>
     <div class="card">
-      <div class="label">CPU Temp</div>
+      <div class="label">CPU Temp<span id="tag_cpu_temp"></span></div>
       <div class="value"><span id="cpu_temp">--</span> <span class="unit">&deg;C</span></div>
     </div>
     <div class="card">
-      <div class="label">Memory</div>
+      <div class="label">Memory<span id="tag_memory"></span></div>
       <div class="value"><span id="memory">--</span> <span class="unit">%</span></div>
     </div>
     <div class="card">
@@ -62,6 +80,36 @@
   <script>
     function fmt(v) { return (v === null || v === undefined) ? "n/a" : v; }
 
+    // Field-level provenance: never let a synthesised value read as live data.
+    const TAG_IDS = { battery_voltage_v: "tag_battery",
+                      cpu_temp_c: "tag_cpu_temp",
+                      memory_usage_pct: "tag_memory" };
+
+    function applyProvenance(d) {
+      const src = d.sources || {};
+      for (const [field, tagId] of Object.entries(TAG_IDS)) {
+        const el = document.getElementById(tagId);
+        if (!el) continue;
+        const s = src[field];
+        if (s === "mock") {
+          el.className = "tag"; el.textContent = "SIMULATED";
+        } else if (s === "system-wide") {
+          el.className = "tag sys"; el.textContent = "WHOLE SYSTEM";
+        } else {
+          el.className = ""; el.textContent = "";
+        }
+      }
+
+      const mocked = Object.entries(src)
+        .filter(([, v]) => v === "mock")
+        .map(([k]) => k.replace(/_/g, " "));
+      const banner = document.getElementById("mock_banner");
+      banner.classList.toggle("show", mocked.length > 0);
+      document.getElementById("mock_detail").textContent = mocked.length
+        ? "Placeholder values, no sensor attached: " + mocked.join(", ")
+        : "";
+    }
+
     async function refresh() {
       try {
         const res = await fetch("/api/stats");
@@ -74,6 +122,7 @@
         document.getElementById("inference").textContent = fmt(d.inference_time_ms);
         document.getElementById("uptime").textContent = fmt(d.uptime_seconds);
         document.getElementById("ts").textContent = new Date().toLocaleTimeString();
+        applyProvenance(d);
       } catch (e) {
         document.getElementById("ts").textContent = "connection error";
       }

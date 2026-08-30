@@ -86,13 +86,14 @@ void setup() {
 
 void loop() {
     // 1. Poll buttons and forward presses to the Pi.
+    //
+    // The Pi is the sole owner of the scan trigger: it receives DATA:BUTTON
+    // and answers with CMD:SCAN. The ESP32 deliberately does NOT run a local
+    // sweep here -- doing both produced two 20 s sweeps per press and let the
+    // Pi pair an unsolicited reading with the wrong set of captured images.
     uint8_t btn = buttons.poll();
     if (btn != BTN_NONE) {
         uart.sendButton(btn);
-        // Local shortcut: SCAN button also triggers a scan.
-        if (btn == BTN_ID_SCAN) {
-            handleScan();
-        }
     }
 
     // 2. Handle any incoming UART command.

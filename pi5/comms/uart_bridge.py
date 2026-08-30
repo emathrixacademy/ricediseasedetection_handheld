@@ -38,6 +38,11 @@ from .. import config
 class UARTBridge:
     """Text-protocol UART link to the ESP32."""
 
+    # A full DPV sweep on the ESP32 takes ~20-24 s (201 steps x 100 ms plus ADC
+    # overhead), so the scan deadline must comfortably exceed it. The short
+    # default timeout applies to quick commands (status, battery, LED).
+    SCAN_TIMEOUT_S = 40.0
+
     def __init__(self, port=config.UART_PORT, baud=config.UART_BAUD, timeout=2.0):
         self.port = port
         self.baud = baud
@@ -65,14 +70,40 @@ class UARTBridge:
         self._ser.write(cmd.encode("ascii"))
         self._ser.flush()
 
-    def read_response(self):
-        """Read one line and parse it into a dict with a ``type`` key."""
+    def read_response(self, timeout=None):
+        """Read one line and parse it into a dict with a ``type`` key.
+
+        ``timeout`` overrides the port timeout for this read only; use it for
+        commands (such as a DPV sweep) that take longer than the default.
+        """
         if self.mock or self._ser is None:
             line = self._mock_response()
-        else:
-            raw = self._ser.readline()
-            line = raw.decode("ascii", errors="replace").strip()
+            parsed = self.parse_line(line)
+            # Mark synthesised data so it can never be mistaken for a real
+            # field reading downstream (result dict, LCD, dashboard, DB).
+            parsed["mock"] = True
+            return parsed
+
+        if timeout is not None:
+            self._ser.timeout = timeout
+        raw = self._ser.readline()
+        if timeout is not None:
+            self._ser.timeout = self.timeout
+        line = raw.decode("ascii", errors="replace").strip()
         return self.parse_line(line)
+
+    def reset_input(self):
+        """Discard any buffered, unsolicited lines before issuing a command.
+
+        The ESP32 emits DATA:BUTTON (and, on a local scan-button press, an
+        unsolicited DATA:BIOSENSOR) without being asked. Clearing the buffer
+        first keeps a stale line from being mistaken for a command response.
+        """
+        if not self.mock and self._ser is not None:
+            try:
+                self._ser.reset_input_buffer()
+            except Exception:
+                pass
 
     # -- parsing -------------------------------------------------------------
 
@@ -131,10 +162,32 @@ class UARTBridge:
 
     # -- high level helpers --------------------------------------------------
 
-    def trigger_scan(self):
-        """Ask the ESP32 to run a biosensor sweep, return parsed reading."""
+    def trigger_scan(self, timeout=None):
+        """Ask the ESP32 to run a biosensor sweep, return parsed reading.
+
+        Waits up to ``timeout`` (default ``SCAN_TIMEOUT_S``) for the sweep,
+        which takes ~20-24 s on real hardware. Unsolicited button/status lines
+        arriving while we wait are skipped rather than returned as the result.
+        """
+        limit = timeout or self.SCAN_TIMEOUT_S
+        deadline = time.monotonic() + limit
+        self.reset_input()
         self.send_command("CMD:SCAN")
-        return self.read_response()
+
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            resp = self.read_response(timeout=remaining)
+            kind = resp.get("type")
+            if kind in ("biosensor", "error"):
+                return resp
+            # "empty" is a read timeout tick; button/status are unsolicited.
+            # Keep waiting for the sweep in both cases.
+
+        return {"type": "timeout",
+                "message": f"no biosensor response within {limit:.0f}s",
+                "raw": ""}
 
     def get_battery(self):
         """Request battery voltage, return parsed dict."""
