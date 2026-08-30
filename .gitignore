@@ -9,8 +9,17 @@ env/
 # Models & data (large binaries — keep out of git)
 *.pt
 *.onnx
+*.onnx.data
 *.hef
 *.tflite
+
+# Training writes checkpoints here (paths.models_dir in train_config.yaml)
+models/
+
+# Datasets: raw downloads and every generated split
+training/dataset/raw/
+training/dataset/split/
+training/dataset/processed/
 pi5/data/images/*
 !pi5/data/images/.gitkeep
 pi5/models/*

@@ -39,9 +39,19 @@ def split_dataset(input_dir, output_dir, ratios=(0.70, 0.15, 0.15),
                if os.path.isdir(os.path.join(input_dir, d))]
 
     counts = {}
+    skipped = []
     for cls in classes:
         src_cls = os.path.join(input_dir, cls)
         images = _list_images(src_cls)
+
+        # Skip classes with no images. The repo ships empty placeholder
+        # directories for every configured class; propagating them into the
+        # split makes torchvision's ImageFolder raise
+        # "Found no valid file for the classes ..." and abort training.
+        if not images:
+            skipped.append(cls)
+            continue
+
         rng.shuffle(images)
 
         n = len(images)
@@ -65,6 +75,14 @@ def split_dataset(input_dir, output_dir, ratios=(0.70, 0.15, 0.15),
                     shutil.move(src, dst)
 
         counts[cls] = {k: len(v) for k, v in subsets.items()}
+
+    if skipped:
+        print(f"[split] WARNING: skipped {len(skipped)} class(es) with no "
+              f"images: {', '.join(sorted(skipped))}")
+    if not counts:
+        raise SystemExit(
+            f"[split] FATAL: no images found under {input_dir!r}. "
+            f"Populate training/dataset/raw/<class_name>/ first.")
 
     return counts
 

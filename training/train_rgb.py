@@ -29,6 +29,14 @@ def build_model(backbone, num_classes, in_channels=3):
     from torchvision import models
 
     backbone = backbone.lower()
+    # Reject unknown names rather than silently defaulting. A typo such as
+    # "mobilen_v3_small" previously fell through to the else-branch and
+    # trained a different architecture than the config asked for.
+    valid = {"mobilenet_v3_small", "efficientnet_b0"}
+    if backbone not in valid:
+        raise ValueError(
+            f"unknown backbone {backbone!r}; expected one of {sorted(valid)}")
+
     if backbone == "efficientnet_b0":
         model = models.efficientnet_b0(weights=models.EfficientNet_B0_Weights.DEFAULT)
         if in_channels != 3:
@@ -90,13 +98,21 @@ def build_dataloaders(cfg, data_root):
     train_ds = datasets.ImageFolder(os.path.join(data_root, "train"), train_tf)
     val_ds = datasets.ImageFolder(os.path.join(data_root, "val"), val_tf)
 
+    if train_ds.classes != val_ds.classes:
+        raise ValueError(
+            f"train/val class mismatch: {train_ds.classes} vs {val_ds.classes}")
+
     train_loader = torch.utils.data.DataLoader(
         train_ds, batch_size=cfg["batch_size"], shuffle=True,
         num_workers=cfg.get("num_workers", 4))
     val_loader = torch.utils.data.DataLoader(
         val_ds, batch_size=cfg["batch_size"], shuffle=False,
         num_workers=cfg.get("num_workers", 4))
-    return train_loader, val_loader
+    # Return the dataset's own class order. ImageFolder assigns label indices
+    # alphabetically, which is NOT the order in the config file -- the caller
+    # must record these names, not the config's, or every prediction is
+    # mislabelled at inference time.
+    return train_loader, val_loader, train_ds.classes
 
 
 def run_epoch(model, loader, criterion, device, optimizer=None):
@@ -127,7 +143,15 @@ def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
     """Full training loop. Returns the path of the best saved checkpoint."""
     import torch
     import torch.nn as nn
-    from torch.utils.tensorboard import SummaryWriter
+
+    # TensorBoard is optional monitoring, not a training dependency. Its
+    # absence must not abort a run -- log to stdout instead.
+    try:
+        from torch.utils.tensorboard import SummaryWriter
+    except ImportError:
+        SummaryWriter = None
+        print("[train] tensorboard unavailable -- scalar logging disabled "
+              "(pip install tensorboard to enable)")
 
     torch.manual_seed(cfg.get("seed", 42))
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -137,16 +161,33 @@ def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
     models_dir = paths["models_dir"]
     os.makedirs(models_dir, exist_ok=True)
 
-    model = build_model(cfg["backbone"], cfg["num_classes"], in_channels)
+    # Build loaders first: the dataset decides the label space, not the config.
+    train_loader, val_loader, class_names = build_dataloaders(cfg, data_root)
+
+    num_classes = len(class_names)
+    if num_classes != cfg["num_classes"]:
+        print(f"[train] WARNING: config declares num_classes="
+              f"{cfg['num_classes']} but the dataset contains {num_classes} "
+              f"class(es): {class_names}")
+        print(f"[train] using the dataset's {num_classes} -- a head sized for "
+              f"absent classes would train dead outputs")
+    if class_names != list(cfg.get("class_names", [])):
+        print(f"[train] NOTE: label order comes from the dataset "
+              f"(alphabetical), not the config file.")
+        print(f"[train]   dataset: {class_names}")
+        print(f"[train]   config : {list(cfg.get('class_names', []))}")
+
+    model = build_model(cfg["backbone"], num_classes, in_channels)
     model.to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = build_optimizer(cfg["optimizer"], model.parameters(),
                                 cfg["lr"], cfg["weight_decay"])
-    train_loader, val_loader = build_dataloaders(cfg, data_root)
 
-    writer = SummaryWriter(os.path.join(paths.get("tensorboard_dir", "runs"),
-                                        model_name))
+    writer = None
+    if SummaryWriter is not None:
+        writer = SummaryWriter(os.path.join(paths.get("tensorboard_dir", "runs"),
+                                            model_name))
     best_acc, best_path = 0.0, os.path.join(models_dir, f"{model_name}_best.pt")
 
     for epoch in range(cfg["epochs"]):
@@ -154,10 +195,11 @@ def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
                                     optimizer)
         val_loss, val_acc = run_epoch(model, val_loader, criterion, device)
 
-        writer.add_scalar("loss/train", tr_loss, epoch)
-        writer.add_scalar("loss/val", val_loss, epoch)
-        writer.add_scalar("acc/train", tr_acc, epoch)
-        writer.add_scalar("acc/val", val_acc, epoch)
+        if writer is not None:
+            writer.add_scalar("loss/train", tr_loss, epoch)
+            writer.add_scalar("loss/val", val_loss, epoch)
+            writer.add_scalar("acc/train", tr_acc, epoch)
+            writer.add_scalar("acc/val", val_acc, epoch)
         print(f"[{epoch + 1}/{cfg['epochs']}] "
               f"train_loss={tr_loss:.4f} train_acc={tr_acc:.4f} "
               f"val_loss={val_loss:.4f} val_acc={val_acc:.4f}")
@@ -166,11 +208,15 @@ def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
             best_acc = val_acc
             torch.save({"model_state": model.state_dict(),
                         "backbone": cfg["backbone"],
-                        "num_classes": cfg["num_classes"],
+                        "num_classes": num_classes,
                         "in_channels": in_channels,
-                        "class_names": cfg["class_names"]}, best_path)
+                        # The dataset's order, matching the trained label
+                        # indices. Using cfg["class_names"] here permutes
+                        # every prediction at inference time.
+                        "class_names": class_names}, best_path)
 
-    writer.close()
+    if writer is not None:
+        writer.close()
     print(f"Best val acc={best_acc:.4f}; saved to {best_path}")
     return best_path
 
