@@ -57,10 +57,19 @@ pio run -d esp32 --target upload --upload-port /dev/ttyUSB0
 pio device monitor --baud 115200
 ```
 
-### Monitoring Dashboard
+### Running Components Individually
 ```bash
-python pi5/monitor/dashboard.py    # http://<pi-ip>:5000
+python -m pi5.main                 # scanner (one mock scan cycle)
+python -m pi5.monitor.dashboard    # http://<pi-ip>:5000
+python scripts/simulate.py         # hardware-in-the-loop simulation
 ```
+
+> **Run modules with `-m` from the project root.** `pi5/` and `training/utils/`
+> use relative imports, so invoking them by file path (`python
+> pi5/monitor/dashboard.py`) raises `ImportError: attempted relative import
+> with no known parent package`. Worse, `python pi5/main.py` does *not* error —
+> it silently disables every subsystem and reports `unknown`. Always use
+> `python -m pi5.main` and `python -m pi5.monitor.dashboard`.
 
 ---
 
