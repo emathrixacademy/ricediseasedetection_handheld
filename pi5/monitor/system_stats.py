@@ -20,10 +20,16 @@ except ImportError:  # pragma: no cover - dev machines may lack psutil
 _START_TIME = time.time()
 _THERMAL_PATH = "/sys/class/thermal/thermal_zone0/temp"
 
-# Placeholder shown when no hardware reading is provided. NOTE: this value does
-# not match the specified 3.7 V LiPo (it reads like a 2S pack) and exists only
-# so the panel renders. Real readings arrive via CMD:BATTERY from the ESP32.
-_MOCK_BATTERY_V = 7.4
+try:
+    from ..config import BATTERY_MAX_V, BATTERY_MIN_V, BATTERY_NOMINAL_V
+except ImportError:  # pragma: no cover - allows standalone -m execution
+    from pi5.config import BATTERY_MAX_V, BATTERY_MIN_V, BATTERY_NOMINAL_V
+
+# Placeholder shown when no hardware reading is provided. Must match the
+# specified 1S 3.7 V LiPo -- this was previously 7.4 V, a 2S value, which
+# rendered as a plausible-looking but physically impossible reading for this
+# pack. Real readings arrive via CMD:BATTERY from the ESP32.
+_MOCK_BATTERY_V = BATTERY_NOMINAL_V
 
 
 def _read_cpu_temp():
@@ -96,6 +102,10 @@ def get_stats(battery_voltage_v=None, inference_time_ms=None):
         "battery_voltage_v": round(float(battery_voltage_v), 2),
         "uptime_seconds": round(time.time() - _START_TIME, 1),
         "inference_time_ms": inference_time_ms,
+        # Display range for the battery gauge: 1S LiPo, 3.0 V empty to 4.2 V
+        # full. Exposed so the dashboard cannot invent its own scale.
+        "battery_min_v": BATTERY_MIN_V,
+        "battery_max_v": BATTERY_MAX_V,
         "sources": sources,
         "mock": any(v == "mock" for v in sources.values()),
     }

@@ -33,6 +33,7 @@
       background: #7c2d12; color: #fed7aa; border: 1px solid #ea580c;
     }
     .tag.sys { background: #1e3a5f; color: #bfdbfe; border-color: #3b82f6; }
+    .range { color: var(--muted); font-size: 11px; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -48,6 +49,7 @@
     <div class="card">
       <div class="label">Battery<span id="tag_battery"></span></div>
       <div class="value accent"><span id="battery">--</span> <span class="unit">V</span></div>
+      <div class="range" id="battery_range">1S LiPo &middot; 3.0&ndash;4.2 V</div>
     </div>
     <div class="card">
       <div class="label">CPU Temp<span id="tag_cpu_temp"></span></div>
@@ -122,6 +124,10 @@
         document.getElementById("inference").textContent = fmt(d.inference_time_ms);
         document.getElementById("uptime").textContent = fmt(d.uptime_seconds);
         document.getElementById("ts").textContent = new Date().toLocaleTimeString();
+        if (d.battery_min_v !== undefined && d.battery_max_v !== undefined) {
+          document.getElementById("battery_range").textContent =
+            `1S LiPo · ${d.battery_min_v}–${d.battery_max_v} V`;
+        }
         applyProvenance(d);
       } catch (e) {
         document.getElementById("ts").textContent = "connection error";

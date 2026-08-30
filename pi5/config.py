@@ -43,6 +43,19 @@ DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "5000"))
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0")
 
 # ---------------------------------------------------------------------------
+# Battery — single-cell 3.7 V LiPo (1S). NOT a 2S pack.
+# ---------------------------------------------------------------------------
+# The ESP32 reads the pack through a 2 x 100 kOhm divider (ratio 2.0) on
+# ADS1115 AIN2 and reports the already-undivided value via DATA:BATTERY.
+# At full charge 4.2 V / 2 = 2.1 V at the ADC pin, safely inside both the
+# GAIN_ONE +/-4.096 V range and the ADS1115 VDD+0.3 V absolute limit.
+BATTERY_CELLS = 1
+BATTERY_NOMINAL_V = 3.7     # pack nominal
+BATTERY_MIN_V = 3.0         # treated as empty; below this the pack is damaged
+BATTERY_MAX_V = 4.2         # full charge
+BATTERY_DIVIDER_RATIO = 2.0  # must match BATT_DIVIDER_RATIO in esp32/src/config.h
+
+# ---------------------------------------------------------------------------
 # GPIO pin configuration (BCM numbering)
 # ---------------------------------------------------------------------------
 
