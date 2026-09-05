@@ -29,16 +29,19 @@ Pin-by-pin wiring for the Raspberry Pi 5 + ESP32 handheld rice disease scanner.
 | PCIe (M.2 x1) | Hailo-8L AI HAT | AI accelerator |
 | CSI0 | RGB Camera Module 3 | Visible imaging |
 | CSI1 | NoIR Camera Module 3 | NIR imaging |
-| GPIO10 (SPI0 MOSI) | LCD DIN | SPI data |
-| GPIO11 (SCLK) | LCD SCK | SPI clock |
-| GPIO8 (CE0) | LCD CS | SPI chip select |
-| GPIO25 | LCD DC | Data/command |
-| GPIO24 | LCD RST | Reset |
-| GPIO18 | LCD BL | Backlight |
-| 3.3V | LCD VCC | LCD power |
+| GPIO2 (SDA1, pin 3) | LCD backpack SDA | I2C data |
+| GPIO3 (SCL1, pin 5) | LCD backpack SCL | I2C clock |
+| 5V (pin 2) | LCD backpack VCC | LCD power (HD44780 needs 5V) |
 | GPIO14 (TXD) | ESP32 GPIO16 (RX2) | UART TX |
 | GPIO15 (RXD) | ESP32 GPIO17 (TX2) | UART RX |
 | GND | Common GND | **SHARED — CRITICAL** |
+
+> **LCD is the 1604A (16×4 HD44780) behind a PCF8574 I2C backpack**, address
+> `0x27` (some ship as `0x3F` — check with `i2cdetect -y 1`). The backpack runs
+> at 5 V but the Pi's I2C pins are 3.3 V: **remove the backpack's SDA/SCL
+> pull-up resistors** (or use a level shifter) so the bus is pulled only to
+> 3.3 V by the Pi's onboard 1.8 kΩ pull-ups. The former ILI9341/SPI wiring is
+> retired; GPIO8/10/11/18/24/25 are now free.
 
 ---
 

@@ -20,7 +20,7 @@ and an electrochemical biosensor. On-device AI runs on a Hailo-8L accelerator.
 | RGB Camera Module 3 | Visible-light leaf imaging (CSI0) |
 | NoIR Camera Module 3 | NIR imaging for NDVI / stress (CSI1) |
 | Electrochemical biosensor | 3-electrode DPV cell for sap biomarkers |
-| SPI LCD | Field UI / results display |
+| I2C LCD (1604 HD44780) | Field UI / results display |
 | Power subsystem | Solar → charge controller → LiPo → buck-boost |
 
 ## 3. Data Flow

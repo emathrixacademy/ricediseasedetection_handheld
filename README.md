@@ -15,7 +15,7 @@ biosensor** for in-field rice disease detection.
 |-----------|-----------|
 | Compute | Raspberry Pi 5 (4 GB) + Hailo-8L AI HAT (13 TOPS, PCIe) |
 | Cameras | RGB Camera Module 3 (CSI 0), NoIR / NIR Module 3 (CSI 1) |
-| Display | 2.4" ILI9341 LCD (SPI) |
+| Display | 1604A 16×4 HD44780 LCD (I2C, PCF8574 backpack @ 0x27) |
 | MCU | ESP32 DevKit (potentiostat, ADC, buttons, LED) |
 | Biosensor | DIY potentiostat — MCP4725 DAC + MCP6002 TIA + ADS1115 16-bit ADC, three-electrode microneedle (WE / RE Ag/AgCl / CE) |
 | Power | LiPo + buck-boost 5V/5A + 20 W solar top-up |

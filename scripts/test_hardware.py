@@ -84,21 +84,25 @@ def check_i2c_adc():
         report("I2C / ADC", SKIP, str(exc))
 
 
-def check_lcd_spi():
-    """LCD on SPI0 (CE0). Confirm spidev device is openable."""
+def check_lcd_i2c():
+    """1604 HD44780 LCD behind a PCF8574 I2C backpack (default 0x27)."""
     try:
-        import spidev  # type: ignore
+        from smbus2 import SMBus  # type: ignore
     except ImportError:
-        report("LCD SPI", SKIP, "spidev not installed")
+        report("LCD I2C", SKIP, "smbus2 not installed")
         return
     try:
-        spi = spidev.SpiDev()
-        spi.open(0, 0)  # bus 0, CE0
-        spi.max_speed_hz = 4_000_000
-        spi.close()
-        report("LCD SPI (SPI0 CE0)", PASS, "spidev opened")
+        from pi5.config import LCD_I2C_ADDR, LCD_I2C_BUS
+    except ImportError:
+        LCD_I2C_BUS, LCD_I2C_ADDR = 1, 0x27
+    try:
+        with SMBus(LCD_I2C_BUS) as bus:
+            bus.read_byte(LCD_I2C_ADDR)
+        report(f"LCD I2C (0x{LCD_I2C_ADDR:02X})", PASS, "backpack responded")
     except Exception as exc:  # noqa: BLE001
-        report("LCD SPI", SKIP, f"spidev unavailable: {exc}")
+        report("LCD I2C", SKIP,
+               f"no device at 0x{LCD_I2C_ADDR:02X} on bus {LCD_I2C_BUS}: {exc}"
+               f" (some backpacks use 0x3F -- run i2cdetect -y 1)")
 
 
 def check_led():
@@ -123,7 +127,7 @@ def main():
     check_cameras()
     check_uart()
     check_i2c_adc()
-    check_lcd_spi()
+    check_lcd_i2c()
     check_led()
     print("=== Done ===")
     return 0

@@ -59,15 +59,14 @@ BATTERY_DIVIDER_RATIO = 2.0  # must match BATT_DIVIDER_RATIO in esp32/src/config
 # GPIO pin configuration (BCM numbering)
 # ---------------------------------------------------------------------------
 
-# ILI9341 LCD over hardware SPI0
-LCD_MOSI = 10        # SPI0 MOSI  (GPIO10)
-LCD_SCLK = 11        # SPI0 SCLK  (GPIO11)
-LCD_CS = 8           # SPI0 CE0   (GPIO8)
-LCD_DC = 25          # Data/Command select
-LCD_RST = 24         # Reset
-LCD_BL = 18          # Backlight enable
-LCD_SPI_BUS = 0
-LCD_SPI_DEVICE = 0   # CE0
+# HD44780 1604 (16x4) character LCD via PCF8574 I2C backpack.
+# Replaces the earlier ILI9341/SPI panel -- SPI0 pins are now free.
+# Backpack SDA -> GPIO2 (pin 3), SCL -> GPIO3 (pin 5), VCC -> 5V, GND -> GND.
+# Backpacks usually ship at 0x27; some are 0x3F. Verify with `i2cdetect -y 1`.
+LCD_I2C_BUS = int(os.getenv("LCD_I2C_BUS", "1"))
+LCD_I2C_ADDR = int(os.getenv("LCD_I2C_ADDR", "0x27"), 16)
+LCD_COLS = 16
+LCD_ROWS = 4
 
 # UART link to the ESP32 companion MCU
 UART_TXD = 14                    # Pi TXD -> ESP32 RX (GPIO14)
