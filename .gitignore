@@ -47,3 +47,11 @@ Thumbs.db
 # Secrets
 .env
 *.local
+
+# Local tooling config
+.claude/
+.pytest_cache/
+
+# Internal / IP-sensitive documentation (kept locally, not published)
+docs/*.pdf
+docs/SYSTEM_REPORT.md
