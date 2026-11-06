@@ -75,25 +75,47 @@ def build_optimizer(name, params, lr, weight_decay):
     return optim.Adam(params, lr=lr, weight_decay=weight_decay)
 
 
-def build_dataloaders(cfg, data_root):
-    """Build train/val loaders from an ImageFolder split (train/ val/)."""
-    import torch
-    from torchvision import datasets, transforms
+def build_transforms(size, in_channels=3):
+    """Training and validation transforms.
+
+    Training images are randomly flipped, brightened or darkened, and shifted
+    (Development Methods, 9.4), so the models do not depend on one lighting
+    or framing. NIR (in_channels=1) is converted to greyscale and normalised
+    with the single-channel statistics the Pi uses (pi5/config.py).
+    """
+    from torchvision import transforms
 
     from utils.preprocess import IMAGENET_MEAN, IMAGENET_STD
 
-    size = cfg["image_size"]
-    train_tf = transforms.Compose([
+    if in_channels == 1:
+        first = [transforms.Grayscale(num_output_channels=1)]
+        mean, std = (0.45,), (0.225,)
+    else:
+        first = []
+        mean, std = IMAGENET_MEAN, IMAGENET_STD
+    train_tf = transforms.Compose(first + [
         transforms.Resize((size, size)),
-        transforms.RandomHorizontalFlip(),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.2),
+        transforms.ColorJitter(brightness=0.3, contrast=0.2),   # brighten / darken
+        transforms.RandomAffine(degrees=10, translate=(0.1, 0.1)),  # shift
         transforms.ToTensor(),
-        transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
+        transforms.Normalize(mean, std),
     ])
-    val_tf = transforms.Compose([
+    val_tf = transforms.Compose(first + [
         transforms.Resize((size, size)),
         transforms.ToTensor(),
-        transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
+        transforms.Normalize(mean, std),
     ])
+    return train_tf, val_tf
+
+
+def build_dataloaders(cfg, data_root, in_channels=3):
+    """Build train/val loaders from an ImageFolder split (train/ val/)."""
+    import torch
+    from torchvision import datasets
+
+    train_tf, val_tf = build_transforms(cfg["image_size"], in_channels)
 
     train_ds = datasets.ImageFolder(os.path.join(data_root, "train"), train_tf)
     val_ds = datasets.ImageFolder(os.path.join(data_root, "val"), val_tf)
@@ -139,7 +161,7 @@ def run_epoch(model, loader, criterion, device, optimizer=None):
     return total_loss / max(total, 1), correct / max(total, 1)
 
 
-def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
+def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier", init_from=None):
     """Full training loop. Returns the path of the best saved checkpoint."""
     import torch
     import torch.nn as nn
@@ -162,7 +184,8 @@ def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
     os.makedirs(models_dir, exist_ok=True)
 
     # Build loaders first: the dataset decides the label space, not the config.
-    train_loader, val_loader, class_names = build_dataloaders(cfg, data_root)
+    train_loader, val_loader, class_names = build_dataloaders(cfg, data_root,
+                                                              in_channels)
 
     num_classes = len(class_names)
     if num_classes != cfg["num_classes"]:
@@ -178,6 +201,15 @@ def train(cfg, data_root=None, in_channels=3, model_name="rgb_classifier"):
         print(f"[train]   config : {list(cfg.get('class_names', []))}")
 
     model = build_model(cfg["backbone"], num_classes, in_channels)
+    if init_from:
+        # Fine-tuning: start from an earlier run (e.g. trained on phone photos)
+        # and continue on new data (photos from the scanner's own cameras).
+        ckpt = torch.load(init_from, map_location="cpu", weights_only=False)
+        if list(ckpt.get("class_names", [])) != list(class_names):
+            raise SystemExit(f"[train] --init-from classes {ckpt.get('class_names')} "
+                             f"differ from this dataset's {class_names}")
+        model.load_state_dict(ckpt["model_state"])
+        print(f"[train] fine-tuning from {init_from}")
     model.to(device)
 
     criterion = nn.CrossEntropyLoss()
@@ -226,11 +258,13 @@ def main():
     parser.add_argument("--config", default="configs/train_config.yaml")
     parser.add_argument("--data-root", default=None,
                         help="folder containing train/ and val/ subsets")
+    parser.add_argument("--init-from", default=None,
+                        help="checkpoint to fine-tune from (e.g. the phone-photo run)")
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     train(cfg, data_root=args.data_root, in_channels=3,
-          model_name="rgb_classifier")
+          model_name="rgb_classifier", init_from=args.init_from)
 
 
 if __name__ == "__main__":

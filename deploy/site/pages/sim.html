@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rice Scanner Simulation</title>
+<meta name="description" content="In-browser simulation of the handheld rice plant health scanner: its 2.4 inch screen, buttons, scan pipeline, biosensor features and late fusion, with simulated cameras, models and biosensor.">
+<style>
+:root{--brand:#1f7a4a;--tint:#e7f4ec;--ink:#1d2327;--muted:#5b6770;--line:#d5dee2;--bg:#fff;--panel:#fff;
+--note:#fff8e1;--noteline:#f3d27a;--track:#e3e9e6;--h2o2:#2563eb;--no3:#d97706}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--brand:#4cc38a;--tint:#14301f;--ink:#e6eaec;
+--muted:#9aa7ae;--line:#2c3a40;--bg:#0f1417;--panel:#141b1e;--note:#2a2410;--noteline:#6b5a1d;--track:#243036;
+--h2o2:#6ea8ff;--no3:#f5b041}}
+:root[data-theme="dark"]{--brand:#4cc38a;--tint:#14301f;--ink:#e6eaec;--muted:#9aa7ae;--line:#2c3a40;--bg:#0f1417;
+--panel:#141b1e;--note:#2a2410;--noteline:#6b5a1d;--track:#243036;--h2o2:#6ea8ff;--no3:#f5b041}
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{font-family:system-ui,Segoe UI,Roboto,sans-serif;margin:0;color:var(--ink);line-height:1.55}
+main{max-width:1080px;margin:0 auto;padding:28px 16px 56px}
+h1{color:var(--brand);margin:.2em 0 0;font-size:26px;line-height:1.25}
+h2{margin:0 0 .6em;font-size:18px}
+h3{margin:1.2em 0 .5em;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+a{color:var(--brand)}
+.muted{color:var(--muted);font-size:14px}
+.note{background:var(--note);border:1px solid var(--noteline);border-radius:12px;padding:12px 16px;font-size:15px;margin:14px 0 22px}
+.box{background:var(--tint);border-radius:12px;padding:14px 16px;font-size:15px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.card b{display:block;color:var(--brand);margin-bottom:6px;font-size:14px}
+.card.fused{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.top{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:24px;align-items:start}
+.panel{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel)}
+/* device back */
+.device{background:linear-gradient(160deg,#2a2f35,#0d0f12);border-radius:30px;padding:22px 20px 16px;max-width:340px;
+margin:0 auto;box-shadow:0 10px 24px rgba(0,0,0,.35),inset 0 1px 0 #3a4048;color:#aab3b9}
+.pcb{background:#b3262e;border-radius:6px;padding:16px 9px 20px;position:relative;
+box-shadow:inset 0 0 0 1px #8e1c23,0 2px 4px rgba(0,0,0,.5)}
+.pcb::before{content:"";position:absolute;left:30%;right:30%;top:5px;height:5px;
+background:repeating-linear-gradient(90deg,#e8c25a 0 3px,transparent 3px 7px);border-radius:1px}
+.pcb::after{content:"2.4\" SPI  240x320";position:absolute;left:0;right:0;bottom:4px;text-align:center;
+font:600 9px system-ui,sans-serif;color:#f6d7d9;letter-spacing:.08em}
+#lcd{display:block;width:100%;aspect-ratio:240/320;background:#0c1210;border:2px solid #111;border-radius:2px}
+.btns{display:flex;justify-content:space-around;margin-top:20px}
+.rb{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;font-weight:600;letter-spacing:.06em;
+color:#aab3b9;cursor:pointer;user-select:none;border:0;background:none;padding:0;font-family:inherit}
+.rb i{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:15px;color:#fff;
+background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),rgba(255,255,255,0) 45%),var(--c,#7b8790);
+box-shadow:0 0 0 3px #c9ced6,0 0 0 4px #8d949c,0 4px 7px rgba(0,0,0,.45);transition:transform .08s}
+.rb.down i{transform:translateY(2px) scale(.96);box-shadow:0 0 0 3px #f5c542,0 0 0 4px #b8901a,0 1px 2px rgba(0,0,0,.4)}
+.rb:focus-visible i{outline:2px solid #f5c542;outline-offset:5px}
+.drow{display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-size:12px}
+.batt{display:inline-block;vertical-align:middle;width:30px;height:14px;border:2px solid #aab3b9;border-radius:3px;position:relative;margin-right:6px}
+.batt::after{content:"";position:absolute;right:-5px;top:3px;width:3px;height:4px;background:#aab3b9;border-radius:0 1px 1px 0}
+.batt b{position:absolute;left:1px;top:1px;bottom:1px;background:#3cc46e;border-radius:1px}
+.batt.low b{background:#e1483c}
+.led{display:inline-block;width:11px;height:11px;border-radius:50%;background:#23402f;vertical-align:middle;margin-left:6px;box-shadow:inset 0 0 2px #000}
+.led.on{background:#46f08a;box-shadow:0 0 8px #46f08a}
+.led.blink{animation:blink .5s steps(2,start) infinite}
+@keyframes blink{50%{background:#46f08a;box-shadow:0 0 8px #46f08a}}
+#log{min-height:1.5em;font-size:13px;color:var(--muted);text-align:center;margin-top:10px}
+.keys{font-size:12.5px;color:var(--muted);text-align:center;margin-top:4px}
+kbd{border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11.5px;background:var(--panel)}
+/* setup */
+.field{margin:0 0 14px}
+.field>label,.field>.lab{display:block;font-weight:600;font-size:14px;margin-bottom:4px}
+select{width:100%;font:inherit;font-size:15px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:15px;margin:8px 0}
+.check input{margin-top:5px;accent-color:var(--brand)}
+.check small{display:block;color:var(--muted);font-size:13px}
+input[type=range]{width:100%;accent-color:var(--brand)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.chip:hover{border-color:var(--brand)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+:root[data-theme="dark"] .chip.on{color:#0f1417}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .chip.on{color:#0f1417}}
+/* what happened */
+.happen{margin-top:24px}
+.hgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+ol.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+ol.steps li{counter-increment:s;display:flex;gap:10px;align-items:center;padding:6px 8px;border-radius:10px;color:var(--muted);font-size:14.5px}
+ol.steps li::before{content:counter(s);flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+font-size:12px;font-weight:700;border:1.5px solid var(--line)}
+ol.steps li.act{background:var(--tint);color:var(--ink);font-weight:600}
+ol.steps li.act::before{border-color:var(--brand);color:var(--brand);animation:pulse 1s infinite}
+ol.steps li.done{color:var(--ink)}
+ol.steps li.done::before{content:"\2713";background:var(--brand);border-color:var(--brand);color:#fff}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(76,195,138,.35)}}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.imgs figure{margin:0}
+.imgs canvas{display:block;width:100%;aspect-ratio:220/130;border-radius:8px;background:#2a241c}
+figcaption{font-size:12.5px;color:var(--muted);margin-top:4px}
+#dpv{display:block;width:100%;height:230px;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+.legend{font-size:12.5px;color:var(--muted);margin-top:4px}
+.legend span{display:inline-block;width:12px;height:3px;vertical-align:middle;margin:0 4px 0 10px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{display:grid;grid-template-columns:minmax(0,10em) minmax(0,1fr) 3.2em;gap:8px;align-items:center;font-size:12.5px;margin:3px 0}
+.bar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t{height:10px;background:var(--track);border-radius:5px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--muted);border-radius:5px;transition:width .4s}
+.bar em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
+.bar.win{font-weight:700}
+.bar.win .t i{background:var(--brand)}
+.why{font-size:12.5px;color:var(--muted);margin-top:6px}
+.empty{color:var(--muted);font-size:14px}
+footer{margin-top:40px;text-align:center}
+@media (max-width:820px){
+  .top,.hgrid{grid-template-columns:minmax(0,1fr)}
+  h1{font-size:22px}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Rice Plant Health Scanner: simulation</h1>
+<div class="muted"><a href="/">Project page</a> &middot; <a href="/cad">3D scanner</a> &middot; <a href="/biosensor">Biosensor</a></div>
+<div class="note">Simulation. The scanner's screens, buttons and decision logic, with simulated cameras, models and biosensor. Nothing here is a real measurement.</div>
+
+<div class="top">
+  <section aria-label="Scanner, back side">
+    <div class="device">
+      <div class="pcb"><canvas id="lcd" width="240" height="320" role="img" aria-label="Scanner screen"></canvas></div>
+      <div class="btns">
+        <button class="rb" id="bScan" type="button"><i style="--c:#22a447">&#9654;</i>SCAN</button>
+        <button class="rb" id="bMode" type="button"><i style="--c:#3b82f6">M</i>MODE</button>
+        <button class="rb" id="bMenu" type="button"><i style="--c:#f59e0b">&#9776;</i>MENU</button>
+      </div>
+      <div class="drow">
+        <span><span class="batt" id="batt"><b></b></span><span id="battTxt">3.90 V</span></span>
+        <span>STATUS<span class="led" id="led"></span></span>
+      </div>
+    </div>
+    <div id="log" aria-live="polite">Press SCAN to measure a leaf.</div>
+    <div class="keys">Keys: <kbd>S</kbd> scan &middot; <kbd>M</kbd> mode &middot; <kbd>N</kbd> menu</div>
+  </section>
+
+  <section class="panel" aria-label="Test setup">
+    <h2>Test setup</h2>
+    <div class="field"><label for="truth">The leaf really has:</label>
+      <select id="truth">
+        <option value="healthy">Healthy</option>
+        <option value="rice_blast">Rice blast</option>
+        <option value="bacterial_leaf_blight">Bacterial leaf blight</option>
+        <option value="nitrogen_deficiency">Nitrogen deficiency</option>
+        <option value="water_deficit">Water deficit</option>
+        <option value="heat_stress">Heat stress</option>
+      </select>
+      <div class="muted">The ground truth the simulated cameras and biosensor respond to.</div></div>
+    <div class="field"><label for="models">Image models</label>
+      <select id="models">
+        <option value="trained">Trained models (realistic)</option>
+        <option value="random">Untrained (random)</option>
+      </select></div>
+    <label class="check"><input type="checkbox" id="cal" checked><span>Biosensor calibrated
+      <small>Off: the biosensor is measured and shown, but left out of fusion.</small></span></label>
+    <label class="check"><input type="checkbox" id="contact" checked><span>Needle in contact
+      <small>Off: the sweep sees no signal.</small></span></label>
+    <div class="field" style="margin-top:14px"><label for="vbat">Battery: <span id="vbatTxt">3.90 V</span></label>
+      <input type="range" id="vbat" min="3.0" max="4.2" step="0.01" value="3.9">
+      <div class="muted">Single-cell LiPo. Below 3.40 V the scanner warns once.</div></div>
+    <div class="field"><span class="lab">Speed</span>
+      <div class="chips" id="speed">
+        <button class="chip" type="button" data-s="20">Real time (20 s per sweep)</button>
+        <button class="chip on" type="button" data-s="3">Fast (3 s per sweep)</button>
+      </div></div>
+  </section>
+</div>
+
+<section class="panel happen" aria-label="What happened">
+  <h2>What happened</h2>
+  <div class="hgrid">
+    <div>
+      <ol class="steps" id="steps">
+        <li>Capture RGB + NIR</li>
+        <li>Biosensor sweep(s)</li>
+        <li>Image models on Hailo-8L</li>
+        <li>Biosensor features</li>
+        <li>Late fusion</li>
+        <li>Show + save</li>
+      </ol>
+      <h3>Camera frames</h3>
+      <div class="imgs">
+        <figure><canvas id="rgb" width="440" height="260"></canvas><figcaption>RGB camera</figcaption></figure>
+        <figure><canvas id="nir" width="440" height="260"></canvas><figcaption id="nirCap">NIR camera, NDVI false colour</figcaption></figure>
+      </div>
+    </div>
+    <div>
+      <h3 style="margin-top:0">DPV sweep</h3>
+      <canvas id="dpv" aria-label="Differential pulse voltammetry curves"></canvas>
+      <div class="legend"><span style="background:var(--h2o2)"></span>H2O2 (oxidation, +)<span style="background:var(--no3)"></span>Nitrate (reduction, &minus;)</div>
+      <h3>Biosensor features</h3>
+      <div class="tw"><table id="feat"></table></div>
+    </div>
+  </div>
+  <h3>Class probabilities</h3>
+  <div class="cards" id="probs"><div class="empty">Press SCAN to run the pipeline.</div></div>
+</section>
+
+<footer class="muted">eMathrix Technologies &middot; Rice Plant Health Scanner research prototype</footer>
+</main>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- constants
+const CLASSES = ["healthy", "rice_blast", "bacterial_leaf_blight", "nitrogen_deficiency", "water_deficit", "heat_stress"];
+const BG = "#0c1210", INK = "#ebf0ec", MUTED = "#8c9c96", BRAND = "#2ea060", WARN = "#f0b428", BAD = "#e1483c";
+const LABELS = {
+  healthy: ["Healthy", BRAND], rice_blast: ["Rice blast", BAD], bacterial_leaf_blight: ["Bacterial leaf blight", BAD],
+  nitrogen_deficiency: ["Nitrogen deficiency", WARN], water_deficit: ["Water deficit", WARN], heat_stress: ["Heat stress", WARN]
+};
+const WEIGHTS = { rgb: 0.5, nir: 0.3, biosensor: 0.2 };
+const BATTERY_LOW_V = 3.4, FULL_SCALE_UA = 16.5, STEP_V = 0.004;
+const ANALYTES = {
+  H2O2: { label: "H2O2", pol: 1, e0: -0.2, e1: 0.6, ep: 0.25 },
+  NO3: { label: "Nitrate", pol: -1, e0: 0.0, e1: -0.8, ep: -0.45 }
+};
+const MODES = [["H2O2"], ["NO3"], ["H2O2", "NO3"]];
+// Simulated plant response, also used as the built-in biosensor calibration:
+// [peak height uA, peak voltage V] per analyte and class.
+const BIO = {
+  healthy:               { H2O2: [0.6, 0.250], NO3: [2.5, -0.450] },
+  rice_blast:            { H2O2: [4.6, 0.262], NO3: [2.3, -0.452] },
+  bacterial_leaf_blight: { H2O2: [5.7, 0.272], NO3: [2.2, -0.458] },
+  nitrogen_deficiency:   { H2O2: [1.0, 0.252], NO3: [0.4, -0.432] },
+  water_deficit:         { H2O2: [3.1, 0.238], NO3: [2.9, -0.446] },
+  heat_stress:           { H2O2: [3.9, 0.228], NO3: [2.6, -0.441] }
+};
+const FEATS = [
+  ["peak_height_ua", "Peak height", "uA", 3], ["peak_voltage_v", "Peak voltage", "V", 3],
+  ["peak_area_uav", "Peak area", "uA·V", 4], ["peak_width_v", "Width (FWHM)", "V", 3],
+  ["background_slope", "Background slope", "uA/V", 3], ["n_peaks", "Number of peaks", "", 0], ["snr", "SNR", "", 0]
+];
+
+// ---------------------------------------------------------------- helpers
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+function gauss() {
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+function softmax(z) {
+  const m = Math.max(...z), e = z.map(x => Math.exp(x - m)), s = e.reduce((a, b) => a + b, 0);
+  return e.map(x => x / s);
+}
+const toProbs = arr => Object.fromEntries(CLASSES.map((c, i) => [c, arr[i]]));
+const hex8 = () => Array.from({ length: 8 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("");
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const modeLabel = idx => MODES[idx].map(a => ANALYTES[a].label).join(" + ");
+
+// ---------------------------------------------------------------- state
+const S = {
+  busy: false, modeIdx: 0, battery: 3.9, battWarned: false, sweepS: 3,
+  screen: { kind: "status", data: null, sim: false },
+  curves: [], xr: [-0.2, 0.6]
+};
+
+// ---------------------------------------------------------------- 240x320 TFT
+const lcd = $("lcd"), lc = lcd.getContext("2d");
+function fitLcd() {
+  const w = lcd.getBoundingClientRect().width || 240;
+  const k = (w / 240) * (window.devicePixelRatio || 1);
+  const bw = Math.round(240 * k), bh = Math.round(320 * k);
+  if (lcd.width !== bw || lcd.height !== bh) { lcd.width = bw; lcd.height = bh; }
+  lc.setTransform(bw / 240, 0, 0, bh / 320, 0, 0);
+  renderLcd();
+}
+const font = (px, bold = true) => `${bold ? "700" : "400"} ${px}px system-ui, "Segoe UI", Roboto, sans-serif`;
+function txt(s, x, y, px, color, align = "left", bold = true) {
+  lc.font = font(px, bold); lc.fillStyle = color; lc.textAlign = align; lc.textBaseline = "top";
+  lc.fillText(s, x, y);
+}
+function wrap(text, px, width) {
+  lc.font = font(px);
+  const lines = []; let line = "";
+  for (const word of String(text).split(/\s+/)) {
+    const trial = (line + " " + word).trim();
+    if (lc.measureText(trial).width <= width || !line) line = trial;
+    else { lines.push(line); line = word; }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function rrect(x, y, w, h, r, color) {
+  lc.fillStyle = color; lc.beginPath();
+  if (lc.roundRect) lc.roundRect(x, y, w, h, Math.min(r, w / 2)); else lc.rect(x, y, w, h);
+  lc.fill();
+}
+function frame(title, accent, sim) {
+  lc.fillStyle = BG; lc.fillRect(0, 0, 240, 320);
+  lc.fillStyle = accent; lc.fillRect(0, 0, 240, 35);
+  txt(title, 10, 9, 17, "#0a0e0c");
+  const v = `${S.battery.toFixed(2)} V`, low = S.battery < BATTERY_LOW_V;
+  txt(v, 230, 10, 14, low ? BAD : "#0a0e0c", "right");
+  lc.font = font(14);
+  const px = 230 - lc.measureText(v).width - 34;   // small SIM marker, always on this page
+  rrect(px, 10, 27, 15, 4, "rgba(0,0,0,.30)");
+  txt("SIM", px + 13.5, 12.5, 10, "#ffffff", "center");
+  if (sim) {
+    lc.fillStyle = WARN; lc.fillRect(0, 290, 240, 30);
+    lc.textBaseline = "middle"; lc.textAlign = "center"; lc.font = font(13); lc.fillStyle = "#141000";
+    lc.fillText("SIMULATED - not a reading", 120, 305);
+  }
+}
+function drawStatus(data) {
+  frame("RICE SCANNER", BRAND, false);
+  let y = 50;
+  for (const [k, v] of Object.entries(data)) {
+    txt(String(k).toUpperCase(), 12, y, 12, MUTED, "left", false);
+    txt(String(v), 12, y + 15, 20, INK);
+    y += 50;
+    if (y > 260) break;
+  }
+}
+function drawResult(d, sim) {
+  const [label, accent] = LABELS[d.diagnosis] || [d.diagnosis, MUTED];
+  frame("SCAN RESULT", accent, sim);
+  let y = 52;
+  for (const line of wrap(label, 28, 216).slice(0, 3)) { txt(line, 12, y, 28, INK); y += 34; }
+  y += 8;
+  const conf = clamp(d.confidence, 0, 1);
+  txt("CONFIDENCE", 12, y, 12, MUTED, "left", false);
+  txt(`${Math.round(conf * 100)}%`, 228, y, 14, INK, "right");
+  y += 20;
+  rrect(12, y, 216, 14, 7, "#283430");
+  if (conf > 0) rrect(12, y, Math.max(14, 216 * conf), 14, 7, accent);
+  y += 30;
+  for (const [k, v] of Object.entries(d.details)) {
+    if (y > 264) break;
+    txt(k, 12, y, 13, MUTED, "left", false);
+    txt(String(v), 228, y, 13, INK, "right", false);
+    y += 22;
+  }
+}
+function drawWarning(title, msg) {
+  frame(title, WARN, false);
+  let y = 56;
+  for (const line of wrap(msg, 18, 216).slice(0, 8)) { txt(line, 12, y, 18, INK, "left", false); y += 26; }
+}
+function renderLcd() {
+  const s = S.screen;
+  if (s.kind === "status") drawStatus(s.data || menuData("ready"));
+  else if (s.kind === "result") drawResult(s.data, s.sim);
+  else if (s.kind === "warning") drawWarning(s.data.title, s.data.msg);
+}
+function show(kind, data, sim = false) { S.screen = { kind, data, sim }; renderLcd(); }
+function menuData(state) {
+  const d = {};
+  if (state) d.state = state;
+  d.battery = `${S.battery.toFixed(2)} V`;
+  d.biosensor = modeLabel(S.modeIdx);
+  d.calibrated = $("cal").checked ? "yes" : "no";
+  d.subsystems = "simulated";
+  return d;
+}
+
+// ---------------------------------------------------------------- device chrome
+function log(msg) { $("log").textContent = msg; }
+function setLed(m) { $("led").className = "led" + (m ? " " + m : ""); }
+function updateBattUI() {
+  const v = S.battery, pct = clamp((v - 3.0) / 1.2, 0, 1) * 100;
+  $("batt").querySelector("b").style.width = `calc(${pct}% - 2px)`;
+  $("batt").classList.toggle("low", v < BATTERY_LOW_V);
+  $("battTxt").textContent = $("vbatTxt").textContent = `${v.toFixed(2)} V`;
+}
+// Mirrors the device: warn once when the voltage drops below the threshold.
+function pollBattery() {
+  const low = S.battery < BATTERY_LOW_V;
+  let warned = false;
+  if (low && !S.battWarned) {
+    show("warning", { title: "LOW BATTERY",
+      msg: `Battery ${S.battery.toFixed(2)} V. Charge the scanner (solar or USB) before the next scans.` });
+    warned = true;
+  }
+  S.battWarned = low;
+  return warned;
+}
+function press(btn, id) {
+  const el = $(id);
+  el.classList.add("down"); setTimeout(() => el.classList.remove("down"), 160);
+  if (S.busy) {
+    log(btn === 1 ? "SCAN ignored: a scan is already running." : "Button ignored while the scan runs.");
+    return;
+  }
+  if (btn === 1) runScan();
+  else if (btn === 2) {
+    S.modeIdx = (S.modeIdx + 1) % MODES.length;
+    show("status", { biosensor: modeLabel(S.modeIdx), press: "SCAN to measure" });
+    log(`MODE: biosensor measures ${modeLabel(S.modeIdx)}.`);
+  } else {
+    pollBattery();
+    if (S.screen.kind !== "warning") show("status", menuData(null));
+    log("MENU: status screen.");
+  }
+}
+
+// ---------------------------------------------------------------- simulated cameras
+const rgbC = $("rgb"), nirC = $("nir"), rctx = rgbC.getContext("2d"), nctx = nirC.getContext("2d");
+const mask = document.createElement("canvas"); mask.width = 440; mask.height = 260;
+const mctx = mask.getContext("2d");
+function leafPath(c, rolled) {
+  const w = rolled ? 9 : 17;
+  c.beginPath();
+  c.moveTo(12, 72 - w);
+  c.bezierCurveTo(80, 64 - w * 1.1, 160, 52 - w * 0.45, 210, 46);
+  c.bezierCurveTo(160, 56 + w * 0.45, 80, 76 + w * 1.1, 12, 72 + w);
+  c.closePath();
+}
+const leafAt = (t, rolled) => ({ x: 12 + 198 * t, y: 72 - 26 * t * t, hw: (rolled ? 9 : 17) * (1 - 0.85 * t) });
+function wavyFrom(c, x0, amp, fill) {        // fill from a wavy line at x0 to the tip
+  c.fillStyle = fill; c.beginPath(); c.moveTo(230, 0); c.lineTo(x0, 0);
+  for (let y = 0; y <= 130; y += 4) c.lineTo(x0 + amp * Math.sin(y / 5 + x0) + (Math.random() - .5) * 3, y);
+  c.lineTo(230, 130); c.closePath(); c.fill();
+}
+function drawLeaf(cls) {
+  const c = rctx, rolled = cls === "water_deficit";
+  c.setTransform(2, 0, 0, 2, 0, 0);
+  const g = c.createLinearGradient(0, 0, 0, 130);
+  g.addColorStop(0, "#5a4a37"); g.addColorStop(1, "#3a3024");
+  c.fillStyle = g; c.fillRect(0, 0, 220, 130);
+  for (let k = 0; k < 140; k++) {
+    c.fillStyle = `rgba(${Math.random() < .5 ? "20,16,10" : "120,104,80"},.25)`;
+    c.fillRect(Math.random() * 220, Math.random() * 130, 1.5, 1.5);
+  }
+  const base = { nitrogen_deficiency: "#b7c24c", water_deficit: "#6f874a" }[cls] || "#3f9a3a";
+  c.save(); leafPath(c, rolled); c.clip();
+  const lg = c.createLinearGradient(12, 0, 210, 0);
+  lg.addColorStop(0, base); lg.addColorStop(1, cls === "nitrogen_deficiency" ? "#d9cf5a" : base);
+  c.fillStyle = lg; c.fillRect(0, 0, 220, 130);
+  c.strokeStyle = "rgba(255,255,255,.10)"; c.lineWidth = 0.6;
+  for (let o = -14; o <= 14; o += 3.5) {
+    c.beginPath(); c.moveTo(12, 72 + o); c.quadraticCurveTo(110, 66 + o * 0.6, 210, 46); c.stroke();
+  }
+  if (cls === "rice_blast") {
+    const n = 5 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < n; k++) {
+      const p = leafAt(0.15 + 0.7 * Math.random(), false), y = p.y + (Math.random() - .5) * p.hw * 1.1;
+      const rx = 8 + Math.random() * 5;
+      c.save(); c.translate(p.x, y); c.rotate(-0.13);
+      c.fillStyle = "rgba(214,196,80,.55)"; c.beginPath(); c.ellipse(0, 0, rx + 3, 5.5, 0, 0, 7); c.fill();
+      c.fillStyle = "#6e3f1c"; c.beginPath(); c.ellipse(0, 0, rx, 3.8, 0, 0, 7); c.fill();
+      c.fillStyle = "#c9c3b3"; c.beginPath(); c.ellipse(0, 0, rx * 0.55, 1.9, 0, 0, 7); c.fill();
+      c.restore();
+    }
+  } else if (cls === "bacterial_leaf_blight") {
+    wavyFrom(c, 120 + Math.random() * 15, 7, "#e4dca2");
+    c.save(); c.beginPath(); c.rect(55, 0, 170, 130); c.clip();
+    c.strokeStyle = "#dcd18a"; c.lineWidth = 7; leafPath(c, false); c.stroke(); c.restore();
+  } else if (cls === "water_deficit") {
+    wavyFrom(c, 168, 4, "#a8885a");
+    c.strokeStyle = "rgba(30,40,20,.45)"; c.lineWidth = 1.2;
+    c.beginPath(); c.moveTo(14, 73); c.quadraticCurveTo(110, 67, 210, 46); c.stroke();
+  } else if (cls === "heat_stress") {
+    wavyFrom(c, 158, 5, "#e9ecd8");
+    for (let k = 0; k < 4; k++) {
+      const p = leafAt(0.4 + 0.3 * Math.random(), false);
+      c.fillStyle = "rgba(235,238,215,.85)"; c.beginPath();
+      c.ellipse(p.x, p.y + (Math.random() - .5) * p.hw, 4, 2, -0.13, 0, 7); c.fill();
+    }
+  }
+  c.restore();
+  c.strokeStyle = "rgba(255,255,255,.28)"; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(12, 72); c.quadraticCurveTo(110, 66, 208, 47); c.stroke();
+  // leaf mask for the NDVI map
+  mctx.setTransform(2, 0, 0, 2, 0, 0); mctx.clearRect(0, 0, 220, 130);
+  mctx.fillStyle = "#fff"; leafPath(mctx, rolled); mctx.fill();
+}
+const NDVI_STOPS = [[0, [90, 20, 25]], [0.2, [215, 70, 30]], [0.4, [240, 195, 75]], [0.55, [150, 205, 60]], [0.75, [25, 125, 60]]];
+function ndviColor(x) {
+  for (let k = 1; k < NDVI_STOPS.length; k++) {
+    const [a, ca] = NDVI_STOPS[k - 1], [b, cb] = NDVI_STOPS[k];
+    if (x <= b) { const t = clamp((x - a) / (b - a), 0, 1); return ca.map((v, j) => v + (cb[j] - v) * t); }
+  }
+  return NDVI_STOPS[NDVI_STOPS.length - 1][1];
+}
+// NIR frame as false-colour NDVI; returns the leaf's mean NDVI.
+function drawNir() {
+  const src = rctx.getImageData(0, 0, 440, 260).data, m = mctx.getImageData(0, 0, 440, 260).data;
+  const out = nctx.createImageData(440, 260), o = out.data;
+  let sum = 0, n = 0;
+  for (let p = 0; p < src.length; p += 4) {
+    let v;
+    if (m[p + 3] > 128) {
+      const h = clamp((src[p + 1] - 0.85 * src[p]) / 110, 0, 1);
+      v = 0.08 + 0.6 * h; sum += v; n++;
+    } else v = 0.04 + 0.03 * Math.random();
+    const col = ndviColor(v);
+    o[p] = col[0]; o[p + 1] = col[1]; o[p + 2] = col[2]; o[p + 3] = 255;
+  }
+  nctx.putImageData(out, 0, 0);
+  return n ? sum / n : 0;
+}
+function clearImages() {
+  for (const c of [rctx, nctx]) { c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = "#2a241c"; c.fillRect(0, 0, 440, 260); }
+  $("nirCap").textContent = "NIR camera, NDVI false colour";
+}
+
+// ---------------------------------------------------------------- simulated biosensor
+function makeCurve(an, cls, contact) {
+  const a = ANALYTES[an], dir = Math.sign(a.e1 - a.e0);
+  const n = Math.round(Math.abs(a.e1 - a.e0) / STEP_V) + 1;
+  const [h0, v0] = BIO[cls][an];
+  const h = h0 * (1 + 0.08 * gauss()), vp = v0 + 0.004 * gauss();
+  const pts = [];
+  for (let k = 0; k < n; k++) {
+    const E = a.e0 + dir * STEP_V * k;
+    let i = contact ? 0.35 * Math.abs(E - a.e0) + 0.05 + a.pol * h * Math.exp(-(((E - vp) / 0.05) ** 2)) : 0.002;
+    i = clamp(i + 0.01 * gauss(), -FULL_SCALE_UA, FULL_SCALE_UA);
+    pts.push({ v: +E.toFixed(4), i });
+  }
+  const sat = pts.some(p => Math.abs(p.i) >= FULL_SCALE_UA);
+  return { an, pts, shown: 0, status: !contact ? "NO_SIGNAL" : sat ? "SATURATED" : "OK", feat: null, base: null };
+}
+// Seven DPV features, straight-line baseline through the first and last 15 %.
+function extractFeatures(curve, pol) {
+  if (!curve || curve.length < 12) return null;
+  const s = curve.slice().sort((p, q) => p.v - q.v), sg = pol >= 0 ? 1 : -1;
+  const v = s.map(p => p.v), i = s.map(p => p.i * sg), n = v.length;
+  const k = Math.max(3, Math.floor(n * 0.15));
+  const edge = [...Array(k).keys(), ...Array.from({ length: k }, (_, j) => n - k + j)];
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const j of edge) { sx += v[j]; sy += i[j]; sxx += v[j] * v[j]; sxy += v[j] * i[j]; }
+  const m = edge.length, slope = (m * sxy - sx * sy) / (m * sxx - sx * sx), icp = (sy - slope * sx) / m;
+  const resid = i.map((y, j) => y - (slope * v[j] + icp));
+  const em = edge.reduce((a, j) => a + resid[j], 0) / m;
+  const noise = Math.sqrt(edge.reduce((a, j) => a + (resid[j] - em) ** 2, 0) / m) || 1e-9;
+  let p = 0;
+  for (let j = 1; j < n; j++) if (resid[j] > resid[p]) p = j;
+  const height = resid[p], half = height / 2;
+  let lo = p, hi = p;
+  while (lo > 0 && resid[lo] > half) lo--;
+  while (hi < n - 1 && resid[hi] > half) hi++;
+  const cross = (a, b) => resid[a] === resid[b] ? v[a] : v[a] + (half - resid[a]) * (v[b] - v[a]) / (resid[b] - resid[a]);
+  const width = height > 0 ? cross(hi - 1, hi) - cross(lo + 1, lo) : 0;
+  let a = lo, b = hi;
+  while (a > 0 && resid[a] > 0) a--;
+  while (b < n - 1 && resid[b] > 0) b++;
+  let area = 0;
+  for (let j = a; j < b; j++) area += (Math.max(resid[j], 0) + Math.max(resid[j + 1], 0)) / 2 * (v[j + 1] - v[j]);
+  const thresh = 3 * noise, peaks = [];
+  for (let j = 1; j < n - 1; j++) {
+    if (resid[j] > thresh && resid[j] >= resid[j - 1] && resid[j] > resid[j + 1]) {
+      if (peaks.length && j - peaks[peaks.length - 1] < 3) {
+        if (resid[j] > resid[peaks[peaks.length - 1]]) peaks[peaks.length - 1] = j;
+        continue;
+      }
+      peaks.push(j);
+    }
+  }
+  return {
+    feat: { peak_height_ua: height, peak_voltage_v: v[p], peak_area_uav: area, peak_width_v: Math.max(width, 0),
+            background_slope: slope * sg, n_peaks: peaks.length, snr: height / noise },
+    base: { slope, icp, sg }
+  };
+}
+// Gaussian naive Bayes on peak height and peak voltage against the built-in calibration.
+function bioPredict(valid) {
+  const ans = Object.keys(valid);
+  if (!ans.length) return null;
+  const lnN = (x, mu, sd) => -0.5 * ((x - mu) / sd) ** 2 - Math.log(sd);
+  const z = CLASSES.map(c => ans.reduce((acc, an) => {
+    const [mh, mv] = BIO[c][an], f = valid[an];
+    return acc + lnN(f.peak_height_ua, mh, 0.12 * mh + 0.15) + lnN(f.peak_voltage_v, mv, 0.01);
+  }, 0));
+  return { probs: toProbs(softmax(z)) };
+}
+
+// ---------------------------------------------------------------- models + fusion
+function imageModel(cls, boost, trained) {
+  const z = CLASSES.map(c => 0.9 * gauss() + (trained && c === cls ? boost : 0));
+  const p = softmax(z), k = p.indexOf(Math.max(...p));
+  return { probs: toProbs(p), prediction: CLASSES[k], confidence: p[k] };
+}
+function fuse(rgb, nir, bio) {
+  const comb = CLASSES.map(() => 0), used = {};
+  for (const [name, r] of [["rgb", rgb], ["nir", nir], ["biosensor", bio]]) {
+    if (!r || !r.probs) continue;
+    const w = WEIGHTS[name] || 0;
+    if (w <= 0) continue;
+    CLASSES.forEach((c, j) => { comb[j] += w * (r.probs[c] || 0); });
+    used[name] = w;
+  }
+  const total = Object.values(used).reduce((a, b) => a + b, 0);
+  let f = total ? comb.map(x => x / total) : CLASSES.map(() => 1 / CLASSES.length);
+  const s = f.reduce((a, b) => a + b, 0); f = f.map(x => x / s);
+  const k = f.indexOf(Math.max(...f));
+  return { diagnosis: CLASSES[k], confidence: f[k], probs: toProbs(f), modalities: Object.keys(used),
+           weights: Object.fromEntries(Object.entries(used).map(([n, w]) => [n, w / total])) };
+}
+
+// ---------------------------------------------------------------- DPV plot
+const dpv = $("dpv"), dctx = dpv.getContext("2d");
+function plotDpv() {
+  const r = dpv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const W = Math.max(200, r.width), H = Math.max(120, r.height);
+  if (dpv.width !== Math.round(W * dpr)) { dpv.width = Math.round(W * dpr); dpv.height = Math.round(H * dpr); }
+  const c = dctx; c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, W, H);
+  const ink = cssVar("--ink"), muted = cssVar("--muted"), line = cssVar("--line");
+  const L = 44, R = 10, T = 10, B = 30, pw = W - L - R, ph = H - T - B;
+  const [x0, x1] = S.xr;
+  let y0 = -1, y1 = 1;
+  for (const cv of S.curves) for (const p of cv.pts) { y0 = Math.min(y0, p.i); y1 = Math.max(y1, p.i); }
+  const pad = (y1 - y0) * 0.08; y0 -= pad; y1 += pad;
+  const X = v => L + (v - x0) / (x1 - x0) * pw, Y = i => T + (y1 - i) / (y1 - y0) * ph;
+  c.font = "11px system-ui, sans-serif"; c.fillStyle = muted; c.strokeStyle = line; c.lineWidth = 1;
+  c.textAlign = "center"; c.textBaseline = "top";
+  for (let v = Math.ceil(x0 / 0.2 - 1e-9) * 0.2; v <= x1 + 1e-9; v += 0.2) {
+    c.beginPath(); c.moveTo(X(v), T); c.lineTo(X(v), T + ph); c.stroke();
+    c.fillText((Math.abs(v) < 1e-9 ? 0 : v).toFixed(1), X(v), T + ph + 4);
+  }
+  const span = y1 - y0, st = span > 12 ? 4 : span > 6 ? 2 : span > 2.5 ? 1 : 0.5;
+  c.textAlign = "right"; c.textBaseline = "middle";
+  for (let i = Math.ceil(y0 / st) * st; i <= y1; i += st) {
+    c.beginPath(); c.moveTo(L, Y(i)); c.lineTo(L + pw, Y(i)); c.stroke();
+    c.fillText(String(+i.toFixed(1)), L - 5, Y(i));
+  }
+  c.fillStyle = ink; c.textAlign = "center"; c.textBaseline = "bottom";
+  c.fillText("E (V vs. ref)", L + pw / 2, H - 1);
+  c.save(); c.translate(11, T + ph / 2); c.rotate(-Math.PI / 2); c.fillText("I (µA)", 0, 0); c.restore();
+  if (!S.curves.length) {
+    c.fillStyle = muted; c.textBaseline = "middle"; c.fillText("No sweep yet", L + pw / 2, T + ph / 2);
+    return;
+  }
+  for (const cv of S.curves) {
+    const col = cssVar(cv.an === "H2O2" ? "--h2o2" : "--no3");
+    c.strokeStyle = col; c.lineWidth = 1.8; c.beginPath();
+    cv.pts.slice(0, cv.shown).forEach((p, j) => j ? c.lineTo(X(p.v), Y(p.i)) : c.moveTo(X(p.v), Y(p.i)));
+    c.stroke();
+    if (cv.shown > 0 && cv.shown < cv.pts.length) {
+      const p = cv.pts[cv.shown - 1]; c.fillStyle = col; c.beginPath(); c.arc(X(p.v), Y(p.i), 3.5, 0, 7); c.fill();
+    }
+    if (cv.base) {            // fitted baseline, back in the measured polarity
+      const b = cv.base, a = ANALYTES[cv.an], lo = Math.min(a.e0, a.e1), hi = Math.max(a.e0, a.e1);
+      c.setLineDash([5, 4]); c.lineWidth = 1.2; c.strokeStyle = muted; c.beginPath();
+      c.moveTo(X(lo), Y(b.sg * (b.slope * lo + b.icp))); c.lineTo(X(hi), Y(b.sg * (b.slope * hi + b.icp)));
+      c.stroke(); c.setLineDash([]);
+    }
+  }
+}
+function sweep(cv, label) {
+  return new Promise(resolve => {
+    const dur = S.sweepS * 1000, t0 = performance.now();
+    let lastSec = -1;
+    const tick = now => {
+      const t = Math.min(1, (now - t0) / dur);
+      cv.shown = Math.max(1, Math.round(t * cv.pts.length));
+      plotDpv();
+      const rem = Math.ceil(S.sweepS * (1 - t));
+      if (rem !== lastSec) {
+        lastSec = rem;
+        show("status", { state: "measuring", biosensor: label, time: rem > 0 ? `about ${rem} s` : "done" });
+      }
+      if (t < 1) requestAnimationFrame(tick); else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+// ---------------------------------------------------------------- panel output
+function setStep(n) {
+  [...$("steps").children].forEach((li, j) => { li.className = j + 1 < n ? "done" : j + 1 === n ? "act" : ""; });
+}
+function featTable(curves) {
+  const cols = curves.length ? curves : [];
+  if (!cols.length) { $("feat").innerHTML = '<tr><td class="empty">No biosensor reading yet.</td></tr>'; return; }
+  let h = "<tr><th>Feature</th>" + cols.map(cv => `<th class="n">${ANALYTES[cv.an].label}</th>`).join("") + "</tr>";
+  h += "<tr><td>Status</td>" + cols.map(cv => `<td class="n">${cv.status.replace("_", " ").toLowerCase()}</td>`).join("") + "</tr>";
+  for (const [key, name, unit, dp] of FEATS) {
+    h += `<tr><td>${name}${unit ? ` <span class="muted">(${unit})</span>` : ""}</td>` +
+      cols.map(cv => `<td class="n">${cv.feat ? (+cv.feat[key]).toFixed(dp) : "&ndash;"}</td>`).join("") + "</tr>";
+  }
+  $("feat").innerHTML = h;
+}
+function probCard(title, res, why, fused) {
+  let h = `<div class="card${fused ? " fused" : ""}"><b>${title}</b>`;
+  if (!res) return h + `<div class="why">${why}</div></div>`;
+  const best = CLASSES.reduce((a, c) => res.probs[c] > res.probs[a] ? c : a, CLASSES[0]);
+  for (const c of CLASSES) {
+    const p = res.probs[c] || 0;
+    h += `<div class="bar${c === best ? " win" : ""}"><span>${LABELS[c][0]}</span>` +
+      `<span class="t"><i style="width:${(p * 100).toFixed(1)}%"></i></span><em>${Math.round(p * 100)}%</em></div>`;
+  }
+  return h + (why ? `<div class="why">${why}</div>` : "") + "</div>";
+}
+function renderProbs(o) {
+  const w = o.fused ? Object.entries(o.fused.weights).map(([n, x]) => `${n} ${x.toFixed(2)}`).join(" · ") : "";
+  $("probs").innerHTML =
+    probCard("RGB model", o.rgb, o.rgb ? `weight ${WEIGHTS.rgb}` : "Waiting for inference.") +
+    probCard("NIR model", o.nir, o.nir ? `weight ${WEIGHTS.nir}` : "Waiting for inference.") +
+    probCard("Biosensor", o.bio, o.bio ? `weight ${WEIGHTS.biosensor} · naive Bayes on peak height + voltage` : o.bioWhy) +
+    probCard("FUSED", o.fused, o.fused ? `Weights renormalised over present modalities: ${w}` : "Waiting for fusion.", true);
+}
+
+// ---------------------------------------------------------------- scan pipeline
+async function runScan() {
+  if (S.busy) return;
+  S.busy = true;
+  const cls = $("truth").value, trained = $("models").value === "trained";
+  const calibrated = $("cal").checked, contact = $("contact").checked, analytes = MODES[S.modeIdx];
+  log(`Scanning: biosensor ${modeLabel(S.modeIdx)}.`);
+  S.curves = []; S.xr = analytes.length > 1 ? [-0.8, 0.6] : analytes[0] === "H2O2" ? [-0.2, 0.6] : [-0.8, 0];
+  clearImages(); plotDpv(); featTable([]); renderProbs({ bioWhy: "Waiting for the sweep." });
+  setStep(0);
+  if (pollBattery()) await sleep(1800);
+  show("status", { state: "scanning", id: hex8() });
+  setLed("blink");
+  // 1. capture
+  setStep(1);
+  await sleep(500);
+  drawLeaf(cls);
+  const ndvi = clamp(drawNir() + 0.01 * gauss(), -1, 1);
+  $("nirCap").textContent = `NIR camera, NDVI false colour · mean NDVI ${ndvi.toFixed(2)}`;
+  await sleep(600);
+  // 2. biosensor sweeps, one per selected analyte
+  setStep(2);
+  for (const an of analytes) {
+    const cv = makeCurve(an, cls, contact);
+    S.curves.push(cv);
+    await sweep(cv, ANALYTES[an].label);
+  }
+  featTable(S.curves);
+  // 3. image models
+  setStep(3);
+  show("status", { state: "analysing", models: "Hailo-8L" });
+  await sleep(700);
+  const rgb = imageModel(cls, 2.6, trained), nir = imageModel(cls, 1.8, trained);
+  nir.ndvi_value = ndvi;
+  renderProbs({ rgb, nir, bioWhy: "Waiting for features." });
+  // 4. biosensor features
+  setStep(4);
+  await sleep(600);
+  const valid = {};
+  for (const cv of S.curves) {
+    if (cv.status !== "OK") continue;
+    const r = extractFeatures(cv.pts, ANALYTES[cv.an].pol);
+    if (r) { cv.feat = r.feat; cv.base = r.base; valid[cv.an] = r.feat; }
+  }
+  featTable(S.curves); plotDpv();
+  // 5. late fusion
+  setStep(5);
+  await sleep(600);
+  const bio = calibrated ? bioPredict(valid) : null;
+  const bioWhy = !calibrated ? "Not calibrated: measured and recorded, left out of fusion."
+    : "No valid reading (no signal or saturated): left out of fusion.";
+  const fused = fuse(rgb, nir, bio);
+  renderProbs({ rgb, nir, bio, bioWhy, fused });
+  // 6. show + save
+  setStep(6);
+  await sleep(400);
+  const details = { NDVI: ndvi.toFixed(2) };
+  for (const cv of S.curves) {
+    details[ANALYTES[cv.an].label] = cv.feat ? `${cv.feat.peak_height_ua.toFixed(2)} uA`
+      : cv.status.replace("_", " ").toLowerCase();
+  }
+  details.Fused = fused.modalities.join("+") || "-";
+  show("result", { diagnosis: fused.diagnosis, confidence: fused.confidence, details }, !trained);
+  setLed("on");
+  setStep(7);
+  const right = fused.diagnosis === cls;
+  log(`Result: ${LABELS[fused.diagnosis][0]} (${Math.round(fused.confidence * 100)}%) · ` +
+      (right ? "matches the leaf." : `the leaf really has ${LABELS[cls][0].toLowerCase()}.`));
+  S.busy = false;
+}
+
+// ---------------------------------------------------------------- wiring
+$("bScan").addEventListener("click", () => press(1, "bScan"));
+$("bMode").addEventListener("click", () => press(2, "bMode"));
+$("bMenu").addEventListener("click", () => press(3, "bMenu"));
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const tag = (e.target && e.target.tagName) || "";
+  if (tag === "SELECT" || tag === "INPUT" || tag === "TEXTAREA") return;
+  const k = e.key.toLowerCase();
+  if (k === "s") press(1, "bScan"); else if (k === "m") press(2, "bMode"); else if (k === "n") press(3, "bMenu");
+});
+$("vbat").addEventListener("input", e => {
+  S.battery = parseFloat(e.target.value);
+  updateBattUI();
+  if (S.busy) { renderLcd(); return; }
+  if (!pollBattery()) {
+    if (S.screen.kind === "status" && S.screen.data && "battery" in S.screen.data) S.screen.data.battery = `${S.battery.toFixed(2)} V`;
+    renderLcd();
+  }
+});
+$("cal").addEventListener("change", () => {
+  if (!S.busy && S.screen.kind === "status" && S.screen.data && "calibrated" in S.screen.data) {
+    S.screen.data.calibrated = $("cal").checked ? "yes" : "no"; renderLcd();
+  }
+});
+$("speed").addEventListener("click", e => {
+  const b = e.target.closest(".chip");
+  if (!b) return;
+  S.sweepS = +b.dataset.s;
+  [...$("speed").children].forEach(x => x.classList.toggle("on", x === b));
+});
+if (window.matchMedia) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", plotDpv);
+}
+if (window.ResizeObserver) { new ResizeObserver(fitLcd).observe(lcd); new ResizeObserver(plotDpv).observe(dpv); }
+window.addEventListener("resize", () => { fitLcd(); plotDpv(); });
+
+updateBattUI();
+show("status", menuData("ready"));
+fitLcd();
+clearImages();
+plotDpv();
+featTable([]);
+</script>
+</body>
+</html>

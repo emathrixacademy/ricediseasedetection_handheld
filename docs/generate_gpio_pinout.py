@@ -26,15 +26,16 @@ COLORS = {
     "i2c": (0.23, 0.49, 0.85),    # I2C
     "uart": (0.18, 0.62, 0.42),   # UART
     "ana": (0.72, 0.57, 0.12),    # analog / GPIO
+    "spi": (0.55, 0.30, 0.75),    # SPI
 }
 LEGEND = [("5 V power", "pwr5"), ("3.3 V rail", "pwr33"), ("Ground", "gnd"),
-          ("I2C", "i2c"), ("UART", "uart"), ("Analog / GPIO", "ana")]
+          ("I2C", "i2c"), ("UART", "uart"), ("SPI", "spi"), ("Analog / GPIO", "ana")]
 
 # (pin label, destination, signal class)
 ESP32_ROWS = [
     ("VIN",         "Buck-boost 5 V via 1 A fuse",             "pwr5"),
     ("GND",         "Common GND (shared with Pi + AFE)",       "gnd"),
-    ("3V3",         "MCP4725 / ADS1115 / MCP6002 VDD",         "pwr33"),
+    ("3V3",         "MCP4725 / ADS1115 / MCP6004 VDD",         "pwr33"),
     ("GPIO16 RX2",  "Pi GPIO14 TXD (header pin 8)",            "uart"),
     ("GPIO17 TX2",  "Pi GPIO15 RXD (header pin 10)",           "uart"),
     ("GPIO21 SDA",  "MCP4725 + ADS1115 SDA",                   "i2c"),
@@ -48,6 +49,7 @@ ESP32_ROWS = [
 ESP32_NOTES = [
     "GPIO34 and GPIO35 are input-only and have no internal pull-ups.",
     "I2C addresses: MCP4725 = 0x60 (ADDR->GND), ADS1115 = 0x49 (ADDR->3.3V).",
+    "ADS1115: AIN0 TIA out, AIN1 RE buffer, AIN2 battery/2, AIN3 virtual ground (U1D).",
     "UART2 crosses over: TX->RX both directions. 115200 8N1, text protocol.",
 ]
 
@@ -58,16 +60,19 @@ PI5_ROWS = [
     ("CSI-1",           "NoIR Camera Module 3",                    "ana"),
     ("GPIO14 TXD [8]",  "ESP32 GPIO16 RX2",                        "uart"),
     ("GPIO15 RXD [10]", "ESP32 GPIO17 TX2",                        "uart"),
-    ("GPIO2 SDA1 [3]",  "1604 LCD backpack SDA (PCF8574 @ 0x27)",  "i2c"),
-    ("GPIO3 SCL1 [5]",  "1604 LCD backpack SCL",                   "i2c"),
-    ("5V [2]",          "1604 LCD backpack VCC (HD44780 needs 5V)", "pwr5"),
+    ("GPIO10 MOSI [19]", "TFT SDI (ILI9341, SPI0)",                "spi"),
+    ("GPIO11 SCLK [23]", "TFT SCK",                                "spi"),
+    ("GPIO8 CE0 [24]",  "TFT CS",                                  "spi"),
+    ("GPIO25 [22]",     "TFT DC (data / command)",                 "ana"),
+    ("GPIO24 [18]",     "TFT RESET",                               "ana"),
+    ("GPIO18 [12]",     "Backlight switch: 100R -> 2N7002 gate -> AO3401 -> TFT LED", "ana"),
+    ("3V3 [1]",         "TFT VCC",                                 "pwr33"),
     ("GND [6]",         "Common GND (shared with ESP32 + AFE)",    "gnd"),
 ]
 PI5_NOTES = [
     "[n] = physical 40-pin header position. BCM numbering elsewhere.",
-    "Remove the LCD backpack's 5V SDA/SCL pull-ups (or level-shift): Pi I2C "
-    "pins are 3.3V; the Pi's onboard 1.8k pull-ups suffice.",
-    "GPIO8/10/11/18/24/25 freed by the ILI9341 -> 1604 LCD change.",
+    "Display: 2.4in ILI9341 TFT, 240 x 320, SPI0 at 32 MHz. MISO and the touch pins are not used.",
+    "Never drive the TFT LED pin from a GPIO: the backlight draws 30-60 mA, a GPIO about 16 mA.",
     "UART link is 3.3V logic on both ends - no level shifter needed.",
 ]
 
@@ -154,7 +159,7 @@ def main():
               ESP32_ROWS, ESP32_NOTES)
     draw_page(c, pw, ph,
               "Raspberry Pi 5 — GPIO connections",
-              "Main compute - cameras, Hailo-8L, 1604 I2C LCD, UART link to "
+              "Main compute - cameras, Hailo-8L, 2.4in SPI TFT, UART link to "
               "the ESP32",
               PI5_ROWS, PI5_NOTES)
     c.save()

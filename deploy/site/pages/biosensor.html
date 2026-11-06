@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rice Scanner Biosensor</title>
+<meta name="description" content="Interactive 3D model of the handheld rice scanner's microneedle electrochemical biosensor: three electrodes in a hydrogel-filled needle, a small potentiostat, and a live differential pulse voltammetry sweep.">
+<style>
+:root{--brand:#1f7a4a;--tint:#e7f4ec;--ink:#1d2327;--muted:#5b6770;--line:#d5dee2;--bg:#f4f7f5;--panel:#ffffff;--scene:#eef3ef;--on:#0f8a4b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--brand:#4cc38a;--tint:#14301f;--ink:#e6eaec;--muted:#9aa7ae;--line:#2c3a33;--bg:#0f1411;--panel:#161d19;--scene:#1a221d;--on:#3ccf86}}
+:root[data-theme="dark"]{--brand:#4cc38a;--tint:#14301f;--ink:#e6eaec;--muted:#9aa7ae;--line:#2c3a33;--bg:#0f1411;--panel:#161d19;--scene:#1a221d;--on:#3ccf86}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,"Segoe UI",Roboto,sans-serif}
+.app{display:grid;grid-template-columns:1fr 340px;height:100vh}
+.view{position:relative;min-height:0}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+#labels{position:absolute;inset:0;pointer-events:none}
+.head{position:absolute;top:0;left:0;right:0;padding:10px 14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;pointer-events:none}
+.head>*{pointer-events:auto}
+.title b{display:block;font-size:16px}
+.title span{font-size:12px;color:var(--muted)}
+.title a{color:var(--brand)}
+.badge{align-self:flex-start;background:#fff8e1;color:#7a5600;border:1px solid #f3d27a;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600}
+.dock{position:absolute;left:12px;bottom:12px;display:flex;gap:10px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px;flex-wrap:wrap}
+.rb{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);cursor:pointer;user-select:none;border:0;background:none;padding:0}
+.rb i{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;color:#fff;
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),rgba(255,255,255,0) 45%),var(--c,#7b8790);
+  box-shadow:0 0 0 3px #c9ced6,0 0 0 4px #8d949c,0 3px 6px rgba(0,0,0,.35)}
+.rb.on i{box-shadow:0 0 0 3px #f5c542,0 0 0 4px #b8901a,0 3px 6px rgba(0,0,0,.35)}
+.sep{width:1px;align-self:stretch;background:var(--line)}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:14px 16px 24px}
+h1{font-size:18px;margin:0 0 2px;color:var(--brand)}
+h2{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:18px 0 8px}
+.muted{color:var(--muted);font-size:12.5px;line-height:1.45}
+.info{background:var(--tint);border-radius:10px;padding:10px 12px;font-size:13.5px;min-height:56px;line-height:1.45}
+.info b{display:block;margin-bottom:2px}
+ol.how{margin:0;padding-left:20px;font-size:13.5px;line-height:1.45}
+ol.how li{margin:5px 0}
+.bezel{background:linear-gradient(#202329,#121418);border-radius:14px;padding:11px;box-shadow:inset 0 1px 0 #2d3139,0 6px 16px rgba(0,0,0,.35)}
+.glass{background:#000;border-radius:6px;padding:7px;position:relative;overflow:hidden;box-shadow:inset 0 0 0 2px #050505}
+.glass::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(160deg,rgba(255,255,255,.07),transparent 40%),repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px)}
+#mon{display:block;width:100%;aspect-ratio:2/1;image-rendering:pixelated;filter:drop-shadow(0 0 3px rgba(120,255,190,.5))}
+.res{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.res div{background:var(--tint);border-radius:8px;padding:6px 9px;font-size:11.5px;color:var(--muted)}
+.res b{display:block;color:var(--ink);font-size:14px;font-variant-numeric:tabular-nums}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.chip:hover{border-color:var(--brand)}
+.chip.on{background:var(--tint);border-color:var(--brand);color:var(--brand);font-weight:600}
+.slider{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin:10px 0}
+.slider input{width:100%;accent-color:var(--brand)}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:13px;margin-top:10px}
+.go{background:var(--brand);color:#fff;border:0;border-radius:999px;padding:8px 16px;font:600 13px system-ui,sans-serif;cursor:pointer}
+.go:hover{filter:brightness(1.08)}
+.lbl{font:600 11px system-ui,sans-serif;color:#1d2327;background:rgba(255,255,255,.92);border:1px solid #c9d3d8;padding:2px 6px;border-radius:5px;white-space:nowrap}
+.lbl.chiplbl{background:#1d2327;color:#e7f4ec;border-color:#000}
+@media (max-width:820px){
+  .app{grid-template-columns:1fr;grid-template-rows:64vh auto;height:auto}
+  .view{height:64vh}
+  aside{border-left:0;border-top:1px solid var(--line)}
+  .rb i{width:38px;height:38px}
+}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+"three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div class="app">
+  <div class="view">
+    <canvas id="c"></canvas>
+    <div id="labels"></div>
+    <div class="head">
+      <div class="title"><b>Biosensor: how the reading is made</b>
+        <span>Microneedle electrochemical sensor &middot; interactive 3D &middot; <a href="/">project page</a> &middot; <a href="/cad">3D scanner</a> &middot; <a href="/sim">simulation</a></span></div>
+      <div class="badge">Schematic model, not to scale.</div>
+    </div>
+    <div class="dock">
+      <button class="rb" id="bPlay"><i style="--c:#22a447">&#10074;&#10074;</i>Pause</button>
+      <span class="sep"></span>
+      <button class="rb on" id="bLabels"><i style="--c:#f59e0b">Aa</i>Labels</button>
+      <button class="rb" id="bXray"><i style="--c:#3b82f6">X</i>X-ray</button>
+      <span class="sep"></span>
+      <button class="rb" id="bSweep"><i style="--c:#1f7a4a">&#8767;</i>Sweep</button>
+    </div>
+  </div>
+  <aside>
+    <h1>Microneedle biosensor</h1>
+    <div class="muted">Three electrodes in the needle, a hydrogel bridge to the plant sap, and a small potentiostat on the ESP32.</div>
+
+    <h2>What the sensor sees now</h2>
+    <div class="bezel"><div class="glass"><canvas id="mon" width="256" height="128" aria-label="Live differential pulse voltammetry curve"></canvas></div></div>
+    <div class="res">
+      <div>Peak height<b id="rH">&ndash;</b></div>
+      <div>Peak potential<b id="rE">&ndash;</b></div>
+      <div>Width (FWHM)<b id="rW">&ndash;</b></div>
+      <div>Reading<b id="rS">&ndash;</b></div>
+    </div>
+
+    <h2>Measurement</h2>
+    <div class="chips">
+      <button class="chip on" data-analyte="h2o2">H<sub>2</sub>O<sub>2</sub></button>
+      <button class="chip" data-analyte="nitrate">Nitrate</button>
+    </div>
+    <label class="slider"><span>low</span><input type="range" id="conc" min="0" max="100" value="50" aria-label="Concentration"><span>high</span></label>
+    <div class="row"><span>Concentration <b id="concV">50%</b></span><button class="go" id="bStart">Start sweep</button></div>
+
+    <h2>How it works</h2>
+    <ol class="how">
+      <li>The <b>needle</b> enters the leaf; the <b>hydrogel</b> takes up sap.</li>
+      <li>The <b>DAC</b>, through the control amplifier, steps the working electrode's potential (H<sub>2</sub>O<sub>2</sub>: &minus;0.2&nbsp;V to +0.6&nbsp;V in 4&nbsp;mV steps; nitrate: 0 to &minus;0.8&nbsp;V, settings provisional).</li>
+      <li>Each step adds a <b>50&nbsp;mV pulse for 50&nbsp;ms</b>; the current before and at the end of the pulse is read, and the difference is the DPV signal.</li>
+      <li>H<sub>2</sub>O<sub>2</sub> is oxidised near <b>+0.25&nbsp;V</b> (a positive peak); nitrate is reduced near <b>&minus;0.45&nbsp;V</b> (a negative peak).</li>
+      <li>The <b>ESP32</b> marks the reading invalid if the current goes beyond &plusmn;16.5&nbsp;&micro;A (saturated) or the curve is flat (electrode not in contact), then sends the full curve to the <b>Pi&nbsp;5</b>, which measures the peak height, position, area, width, background slope, number of peaks and signal-to-noise.</li>
+    </ol>
+
+    <h2>Try a fault</h2>
+    <div class="chips">
+      <button class="chip" data-fault="lift">Lift the needle (no contact)</button>
+      <button class="chip" data-fault="strong">Very strong sample</button>
+    </div>
+
+    <h2>View</h2>
+    <div class="chips">
+      <button class="chip" data-view="tip">Needle tip</button>
+      <button class="chip" data-view="whole">Whole sensor</button>
+      <button class="chip" data-view="elec">Electronics</button>
+      <button class="chip" data-view="leaf">Leaf</button>
+    </div>
+
+    <h2>Selected part</h2>
+    <div class="info" id="info"><b>Tap any part</b>The leaf, the needle, the gel, each electrode, the syringe and each chip say what they do.</div>
+    <p class="muted">The curve here is simulated for the page. The real sweep takes about 20&nbsp;s; it is sped up here.</p>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+
+// Units: millimetres, +y up. Schematic: the needle and leaf are drawn far larger than life.
+const PARTS = {
+  leaf: ["Leaf tissue", "A section of a rice leaf blade, cut away to show the inside. The sap carries hydrogen peroxide (H2O2), a stress marker, and nitrate, a nutrition marker."],
+  housing: ["Needle housing", "A thin stainless-steel tube that pierces the leaf and protects the electrodes and the gel inside it. Drawn see-through so you can look in."],
+  gel: ["Hydrogel", "0.75% κ-carrageenan gel, filled into the syringes warm at 45–50 °C, where it sets. It takes up sap from the tissue and carries it to the electrodes."],
+  we: ["Working electrode (WE)", "Where the reaction happens: H2O2 is oxidised here, or nitrate is reduced. The current through it is the signal."],
+  re: ["Reference electrode (RE)", "Silver coated with silver chloride (Ag/AgCl). Its potential stays fixed, so the working electrode's potential is measured against it."],
+  ce: ["Counter electrode (CE)", "Platinum. It closes the circuit: the control amplifier drives it so the WE–RE potential is exactly what was commanded."],
+  syringe: ["Syringe", "The clear barrel and plunger behind the needle: the hydrogel reservoir. It holds the gel and pushes fresh gel into the needle."],
+  leads: ["Shielded leads", "One screened cable per electrode, to the analog front end. The screen keeps electrical noise off currents of a few microamps."],
+  afe: ["Analog front end (AFE)", "The small potentiostat board: the DAC sets the potential, the op-amps hold it and turn the current into a voltage, the ADC reads it."],
+  dac: ["MCP4725 DAC", "12-bit digital-to-analog converter. The ESP32 gives it each step's potential; it sets the voltage the control amplifier works to."],
+  opamp: ["MCP6004 op-amps", "Four amplifiers in one chip: the control amplifier, the RE buffer, the transimpedance amplifier (100 kΩ) that turns the WE current into a voltage, and the virtual-ground buffer."],
+  adc: ["ADS1115 ADC", "16-bit analog-to-digital converter. It reads the current (as the transimpedance voltage), the RE potential and the virtual ground."],
+  esp32: ["ESP32", "Runs the sweep step by step, checks the reading (saturated? flat?), and sends the full curve to the Raspberry Pi 5."],
+};
+
+const canvas = document.getElementById("c"), view = canvas.parentElement;
+const css = getComputedStyle(document.documentElement);
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const labelRenderer = new CSS2DRenderer({ element: document.getElementById("labels") });
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(css.getPropertyValue("--scene").trim() || "#eef3ef");
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 3000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa69e, 1.15));
+const sun = new THREE.DirectionalLight(0xffffff, 1.5); sun.position.set(80, 160, 120); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.5); fill.position.set(-120, 60, -90); scene.add(fill);
+
+const pickable = [];
+const part = (m, k) => { m.userData.part = k; pickable.push(m); return m; };
+const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, metalness: 0.05, ...o });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const labels = new THREE.Group(); scene.add(labels);
+function label(text, p, cls = "") {
+  const el = document.createElement("div"); el.className = "lbl " + cls; el.textContent = text;
+  const o = new CSS2DObject(el); o.position.copy(p); labels.add(o);
+}
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+function canvasTex(w, h, draw) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; draw(c.getContext("2d"), w, h);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+}
+const xray = [];                                  // see-through meshes: [mesh, normal opacity]
+const seeThrough = (m) => { xray.push([m, m.material.opacity]); return m; };
+
+// ---------------------------------------------------------------------------------------------
+// Leaf blade: 140 mm long (x), 28 mm wide (z), 4 mm thick (y), sagging slightly at the ends.
+const LEAF_L = 140, LEAF_W = 28, LEAF_T = 4, CUT = 9;
+const veinTex = canvasTex(1024, 256, (g, w, h) => {
+  g.fillStyle = "#4f8d34"; g.fillRect(0, 0, w, h);
+  for (let y = 5; y < h; y += 9) { g.fillStyle = "#6aa94a"; g.fillRect(0, y, w, 1.6); }
+  g.fillStyle = "#a6d685"; g.fillRect(0, h / 2 - 4, w, 8);          // the midrib
+  g.fillStyle = "rgba(255,255,255,.05)"; for (let i = 0; i < 300; i++) g.fillRect(Math.random() * w, Math.random() * h, 3, 1);
+});
+const cellTex = canvasTex(512, 112, (g, w, h) => {
+  g.fillStyle = "#cfe8b0"; g.fillRect(0, 0, w, h);
+  g.strokeStyle = "#6f9f4c"; g.lineWidth = 1.5;
+  for (let y = 14; y < h - 8; y += 15) for (let x = 6 + ((y / 15) % 2) * 9; x < w; x += 18) {
+    g.fillStyle = "#b5da92"; g.beginPath(); g.ellipse(x + Math.random() * 3, y, 8, 6.5, 0, 0, 7); g.fill(); g.stroke();
+  }
+  g.fillStyle = "#3f7a2a"; g.fillRect(0, 0, w, 5); g.fillRect(0, h - 5, w, 5);    // epidermis
+  for (const x of [90, 256, 420]) {                                              // vascular bundles (veins)
+    g.fillStyle = "#e8f2c8"; g.beginPath(); g.arc(x, h / 2, 17, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = "#7da35a"; g.beginPath(); g.arc(x, h / 2, 7, 0, 7); g.fill();
+  }
+});
+function bend(g) {
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i); p.setY(i, p.getY(i) - 0.0015 * x * x); }
+  g.computeVertexNormals(); return g;
+}
+const leafMat = mat(0xffffff, { map: veinTex, roughness: 0.7 });
+for (const s of [-1, 1]) {
+  const len = LEAF_L / 2 - CUT, g = new THREE.BoxGeometry(len, LEAF_T, LEAF_W, 40, 1, 1);
+  g.translate(s * (CUT + len / 2), 0, 0);
+  scene.add(part(new THREE.Mesh(bend(g), leafMat), "leaf"));
+}
+// The cut-away: only the back half of the blade is left here, see-through, showing the tissue.
+const tissueMat = mat(0xffffff, { map: cellTex, transparent: true, opacity: 0.62, depthWrite: false, side: THREE.DoubleSide, roughness: 0.8 });
+{
+  const g = new THREE.BoxGeometry(CUT * 2, LEAF_T, LEAF_W / 2, 8, 1, 1); g.translate(0, 0, -LEAF_W / 4);
+  scene.add(seeThrough(part(new THREE.Mesh(bend(g), tissueMat), "leaf")));
+}
+
+// ---------------------------------------------------------------------------------------------
+// The needle: a group whose local +y runs from the tip back up the axis, entering at 40° to vertical.
+const TIP = V(0, -0.6, -2.5);
+const needle = new THREE.Group(); needle.position.copy(TIP); needle.rotation.z = (40 * Math.PI) / 180; scene.add(needle);
+const AXIS = V(0, 1, 0).applyEuler(needle.rotation);
+function along(r0, r1, y0, y1, m, seg = 32, open = false) {
+  const g = new THREE.CylinderGeometry(r1, r0, y1 - y0, seg, 1, open); g.translate(0, (y0 + y1) / 2, 0);
+  return new THREE.Mesh(g, m);
+}
+const steel = mat(0xb9bec4, { metalness: 0.8, roughness: 0.35 });
+const housingMat = new THREE.MeshPhysicalMaterial({ color: 0xc9d0d6, metalness: 0.6, roughness: 0.3, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false });
+needle.add(seeThrough(part(along(1.05, 1.05, 0, 34, housingMat, 40, true), "housing")));
+{ const rim = part(new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.07, 8, 40), steel), "housing"); rim.rotation.x = Math.PI / 2; needle.add(rim); }
+const gelMat = mat(0xbfe3ff, { emissive: 0x3b82c4, emissiveIntensity: 0.4, transparent: true, opacity: 0.5, depthWrite: false, roughness: 0.2 });
+needle.add(part(along(0.92, 0.92, 0.02, 34, gelMat), "gel"));
+{ const bulb = part(new THREE.Mesh(new THREE.SphereGeometry(1.1, 24, 12), gelMat), "gel"); bulb.scale.set(1, 0.45, 1); needle.add(bulb); }
+// Three electrode wires through the gel.
+const ELEC = { we: [0.4, 0], re: [-0.21, 0.34], ce: [-0.21, -0.34] };
+const weMat = mat(0x1b1b1b, { roughness: 0.85 }), reMat = mat(0xd8dde2, { metalness: 0.9, roughness: 0.25 });
+const agclMat = mat(0x8a8f94, { roughness: 0.95 }), ceMat = mat(0xe8eaed, { metalness: 0.95, roughness: 0.2 });
+function electrode(k, segs) {
+  const [x, z] = ELEC[k];
+  for (const [y0, y1, m] of segs) { const w = part(along(0.13, 0.13, y0, y1, m, 12), k); w.position.set(x, 0, z); needle.add(w); }
+}
+electrode("we", [[0.35, 33, weMat]]);
+electrode("re", [[0.35, 1.9, agclMat], [1.9, 33, reMat]]);
+electrode("ce", [[0.35, 33, ceMat]]);
+// Syringe behind the needle: hub, clear barrel with gel, stopper, plunger.
+const plastic = new THREE.MeshPhysicalMaterial({ color: 0xf2f6f8, roughness: 0.15, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false });
+const barrelMat = new THREE.MeshPhysicalMaterial({ color: 0xeaf6fb, roughness: 0.05, transparent: true, opacity: 0.25, side: THREE.DoubleSide, depthWrite: false });
+needle.add(seeThrough(part(along(1.1, 3, 34, 37, plastic), "syringe")));
+needle.add(seeThrough(part(along(4.2, 4.2, 37, 72, barrelMat, 40, true), "syringe")));
+needle.add(part(along(3.9, 3.9, 37.2, 58, gelMat), "gel"));
+needle.add(part(along(3.95, 3.95, 58, 61, mat(0x2b2b2b, { roughness: 0.8 })), "syringe"));
+const plunger = mat(0xf3f4f6, { roughness: 0.5 });
+{ const r = part(box(1.4, 21, 5.4, plunger), "syringe"); r.position.y = 71.5; needle.add(r); }
+{ const r = part(box(5.4, 21, 1.4, plunger), "syringe"); r.position.y = 71.5; needle.add(r); }
+needle.add(part(along(5, 5, 82, 83.2, plunger), "syringe"));
+{ const f = part(box(15, 1.2, 9, plunger), "syringe"); f.position.y = 72; needle.add(f); }
+needle.updateMatrixWorld(true);
+
+// ---------------------------------------------------------------------------------------------
+// Electronics: the AFE (potentiostat) board and the ESP32, behind the leaf.
+const AFE = V(18, 22, -42), ESP = V(60, 22, -42);
+const afe = part(box(34, 1.6, 22, mat(0x1f7a3a, { roughness: 0.5 })), "afe"); afe.position.copy(AFE); scene.add(afe);
+const chipMat = mat(0x16181b, { roughness: 0.45 });
+const CHIPS = [["dac", "MCP4725 DAC", -10, 4.5, 4], ["opamp", "MCP6004 op-amps", 0, 9, 5], ["adc", "ADS1115 ADC", 10, 6, 5]];
+for (const [k, name, dx, w, d] of CHIPS) {
+  const c = part(box(w, 1.3, d, chipMat), k); c.position.set(AFE.x + dx, AFE.y + 1.45, AFE.z + 4); scene.add(c);
+  for (let i = 0; i < Math.round(w / 1.3); i++) for (const s of [-1, 1]) {
+    const pin = box(0.4, 0.4, 0.9, steel); pin.position.set(c.position.x - w / 2 + 0.7 + i * 1.3, AFE.y + 0.9, c.position.z + s * (d / 2 + 0.4)); scene.add(pin);
+  }
+  label(name, V(c.position.x, AFE.y + (k === "opamp" ? 9 : 5), c.position.z + (k === "opamp" ? -2 : 3)), "chiplbl");
+}
+{ const r = part(box(3, 1, 1.2, mat(0xc9a36a)), "opamp"); r.position.set(AFE.x + 2, AFE.y + 1.3, AFE.z - 3); scene.add(r); }   // the 100 kΩ resistor
+const conn = part(box(4, 3, 10, mat(0xf2f2f2)), "afe"); conn.position.set(AFE.x - 14, AFE.y + 2.3, AFE.z - 5); scene.add(conn);
+const esp = part(box(26, 1.6, 48, mat(0x111111, { roughness: 0.5 })), "esp32"); esp.position.copy(ESP); scene.add(esp);
+const can = part(box(16, 2.4, 18, steel), "esp32"); can.position.set(ESP.x, ESP.y + 2, ESP.z - 12); scene.add(can);
+const ant = part(box(16, 0.4, 6, mat(0x1d1d1d)), "esp32"); ant.position.set(ESP.x, ESP.y + 1, ESP.z - 23); scene.add(ant);
+for (let i = 0; i < 2; i++) { const b = part(box(4, 1.5, 3, mat(0x9ca3af)), "esp32"); b.position.set(ESP.x + (i ? 7 : -7), ESP.y + 1.5, ESP.z + 20); scene.add(b); }
+for (let i = 0; i < 19; i++) for (const s of [-1, 1]) {
+  const h = box(1, 2, 1, mat(0x222222)); h.position.set(ESP.x + s * 11.5, ESP.y + 1.6, ESP.z - 20 + i * 2.3); scene.add(h);
+}
+function tube(points, color, r, key, parent = scene) {
+  const curve = new THREE.CatmullRomCurve3(points);
+  const m = part(new THREE.Mesh(new THREE.TubeGeometry(curve, 80, r, 8, false), mat(color, { roughness: 0.55 })), key);
+  parent.add(m); return m;
+}
+// Shielded leads from the hub's side port to the AFE connector, built in the needle's frame so they move with it.
+const LEAD_C = { we: 0xdc2626, re: 0x2563eb, ce: 0xf59e0b };
+Object.entries(ELEC).forEach(([k, [x, z]], i) => {
+  const w = [V(15, 52, -14 + i * 1.6), V(AFE.x - 24, AFE.y + 8, AFE.z - 6 + i * 1.6), V(AFE.x - 16, AFE.y + 2.3, AFE.z - 8 + i * 2.6)];
+  tube([V(x, 32, z), V(x * 2, 35.4, z), V(3.5, 35.6, z * 3), ...w.map((p) => needle.worldToLocal(p))], LEAD_C[k], 0.32, "leads", needle);
+});
+for (let i = 0; i < 4; i++)
+  tube([V(AFE.x + 17, AFE.y + 0.9, AFE.z - 6 + i * 2), V(AFE.x + 21, AFE.y + 4, AFE.z - 6 + i * 2), V(ESP.x - 15, ESP.y + 4, AFE.z - 6 + i * 2), V(ESP.x - 11.5, ESP.y + 2.6, ESP.z - 8 + i * 2.3)], [0xdc2626, 0x111111, 0xfacc15, 0x16a34a][i], 0.22, "afe");
+
+// Molecules drifting from the tissue into the gel toward the WE tip, and the glow at the tip.
+const NP = 44;
+const molMat = new THREE.MeshBasicMaterial({ color: 0xff8a3d, transparent: true, opacity: 0.9 });
+const mols = new THREE.InstancedMesh(new THREE.SphereGeometry(0.16, 10, 6), molMat, NP);
+mols.visible = false; scene.add(mols);
+const molState = Array.from({ length: NP }, () => ({ a: V(0, 0, 0), t: Math.random(), v: 0.25 + Math.random() * 0.3 }));
+const spawn = (m) => { m.a.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 3.2, -0.3 - Math.random() * 9); m.t = 0; };
+molState.forEach((m) => { const t = m.t; spawn(m); m.t = t; });
+const glow = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 10), new THREE.MeshBasicMaterial({ color: 0x6dffb0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+scene.add(glow);
+const weTip = () => needle.localToWorld(V(ELEC.we[0], 0.35, ELEC.we[1]));
+
+// Labels (positions in the needle's frame where they belong to it).
+const NL = (x, y, z) => needle.localToWorld(V(x, y, z));
+label("WE (working)", NL(1.6, 2.5, 0));
+label("RE (Ag/AgCl)", NL(-1.8, 6, 0.4));
+label("CE (platinum)", NL(1.7, 10, -0.4));
+label("Hydrogel", NL(-2, 18, 0));
+label("Needle housing", NL(2.2, 27, 0));
+label("Syringe (gel reservoir)", NL(6, 52, 0));
+label("Shielded leads", V(-4, 44, -24));
+label("Leaf tissue (cut away)", V(4, 4, -13));
+label("Rice leaf blade", V(-40, 2, 12));
+label("AFE (potentiostat)", V(AFE.x - 8, AFE.y + 4, AFE.z - 10));
+label("ESP32", V(ESP.x, ESP.y + 6, ESP.z + 8), "chiplbl");
+
+// ---------------------------------------------------------------------------------------------
+const info = document.getElementById("info");
+let lit = [];
+function select(m) {
+  lit.forEach((x) => x.material.emissive && x.material.emissive.setHex(x.userData.e0)); lit = [];
+  if (!m) return;
+  const [t, d] = PARTS[m.userData.part];
+  info.innerHTML = "<b></b><span></span>";
+  info.querySelector("b").textContent = t; info.querySelector("span").textContent = d;
+  lit = pickable.filter((x) => x.userData.part === m.userData.part && x.material.emissive);
+  lit.forEach((x) => { x.material = x.material.clone(); x.userData.e0 = x.material.emissive.getHex(); x.material.emissive.setHex(0x1f6b45); });
+}
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let down = null;
+canvas.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
+canvas.addEventListener("pointerup", (e) => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(pickable.filter((m) => m.visible), false);
+  // Prefer the parts inside the see-through housing, gel, syringe and tissue when they are hit too.
+  const shell = new Set(["housing", "syringe", "leaf", "gel"]);
+  const inner = hits.find((h) => !shell.has(h.object.userData.part) && h.distance - hits[0].distance < 6);
+  const gel = hits.find((h) => h.object.userData.part === "gel" && h.distance - hits[0].distance < 3);
+  select(inner ? inner.object : gel ? gel.object : hits[0] ? hits[0].object : null);
+});
+
+const VIEWS = {
+  tip: [[9, 7, 15], [-1, 0.5, -2.5]],
+  whole: [[55, 70, 120], [8, 18, -14]],
+  elec: [[38, 62, 22], [38, 22, -40]],
+  leaf: [[-10, 75, 110], [0, -2, 0]],
+};
+let fly = null;
+function go(n) { const [p, t] = VIEWS[n]; fly = { p0: camera.position.clone(), t0: controls.target.clone(), p: V(...p), t: V(...t), s: performance.now() }; }
+document.querySelectorAll("[data-view]").forEach((c) => c.addEventListener("click", () => go(c.dataset.view)));
+camera.position.set(...VIEWS.whole[0]); controls.target.set(...VIEWS.whole[1]);
+
+// Dock buttons.
+let playing = true;
+const bPlay = document.getElementById("bPlay");
+bPlay.onclick = () => {
+  playing = !playing;
+  bPlay.innerHTML = playing ? '<i style="--c:#22a447">&#10074;&#10074;</i>Pause' : '<i style="--c:#22a447">&#9654;</i>Play';
+};
+const toggle = (id, fn, on) => { const b = document.getElementById(id); b.onclick = () => { on = !on; b.classList.toggle("on", on); fn(on); }; fn(on); };
+toggle("bLabels", (v) => (labels.visible = v), true);
+toggle("bXray", (v) => xray.forEach(([m, o]) => (m.material.opacity = v ? o * 0.3 : o)), false);
+document.getElementById("bSweep").onclick = () => startSweep();
+document.getElementById("bStart").onclick = () => startSweep();
+
+// ---------------------------------------------------------------------------------------------
+// The sweep: a simulated differential pulse voltammogram, drawn point by point.
+const SAT = 16.5, NPTS = 201, SWEEP_S = 4;
+let analyte = "h2o2", conc = 0.5, armed = null;
+const S = { pts: [], i: 0, t: 0, running: false, analyte: "h2o2", fault: null, res: null };
+const concIn = document.getElementById("conc"), concV = document.getElementById("concV");
+concIn.oninput = () => { conc = concIn.value / 100; concV.textContent = concIn.value + "%"; };
+document.querySelectorAll("[data-analyte]").forEach((c) => c.addEventListener("click", () => {
+  analyte = c.dataset.analyte;
+  document.querySelectorAll("[data-analyte]").forEach((x) => x.classList.toggle("on", x === c));
+  if (!S.running) startSweep();
+}));
+const faultChips = document.querySelectorAll("[data-fault]");
+faultChips.forEach((c) => c.addEventListener("click", () => {
+  armed = c.dataset.fault;
+  faultChips.forEach((x) => x.classList.toggle("on", x === c));
+  startSweep();
+}));
+function gauss() { let u = 0; while (!u) u = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random()); }
+function makeCurve(an, c, fault) {
+  const pts = [], pk = fault === "strong" ? 25 : 0.3 + 6 * c;
+  for (let k = 0; k < NPTS; k++) {
+    const E = an === "h2o2" ? -0.2 + 0.004 * k : -0.004 * k;
+    let I;
+    if (fault === "lift") I = 0.003 * gauss();
+    else if (an === "h2o2") I = 0.35 * (E + 0.2) + 0.05 + pk * Math.exp(-(((E - 0.25) / 0.05) ** 2)) + 0.01 * gauss();
+    else I = -(0.35 * Math.abs(E) + 0.05 + pk * Math.exp(-(((E + 0.45) / 0.05) ** 2))) + 0.01 * gauss();
+    pts.push([E, Math.max(-SAT, Math.min(SAT, I))]);
+  }
+  return pts;
+}
+function analyse(pts, an) {
+  const E = pts.map((p) => p[0]), I = pts.map((p) => p[1]), n = pts.length;
+  const sat = I.some((v) => Math.abs(v) >= SAT - 1e-9);
+  const p2p = Math.max(...I) - Math.min(...I);
+  const m = Math.round(n * 0.15), idx = [];
+  for (let j = 0; j < m; j++) idx.push(j, n - 1 - j);
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const j of idx) { sx += E[j]; sy += I[j]; sxx += E[j] * E[j]; sxy += E[j] * I[j]; }
+  const N = idx.length, b = (N * sxy - sx * sy) / (N * sxx - sx * sx || 1e-12), a = (sy - b * sx) / N;
+  const s = an === "h2o2" ? 1 : -1;
+  const corr = I.map((v, j) => s * (v - (a + b * E[j])));
+  let pk = 0; for (let j = 1; j < n; j++) if (corr[j] > corr[pk]) pk = j;
+  const h = corr[pk], half = h / 2;
+  let l = pk; while (l > 0 && corr[l] > half) l--;
+  let r = pk; while (r < n - 1 && corr[r] > half) r++;
+  const xl = l < pk ? E[l] + ((E[l + 1] - E[l]) * (half - corr[l])) / (corr[l + 1] - corr[l] || 1e-12) : E[l];
+  const xr = r > pk ? E[r - 1] + ((E[r] - E[r - 1]) * (corr[r - 1] - half)) / (corr[r - 1] - corr[r] || 1e-12) : E[r];
+  const status = sat ? "SATURATED" : p2p < 0.02 ? "NO SIGNAL" : "OK";
+  return { status, height: s * h, Ep: E[pk], fwhm: Math.abs(xr - xl) * 1000, slope: b };
+}
+function startSweep() {
+  S.analyte = analyte; S.fault = armed; armed = null;
+  S.pts = makeCurve(S.analyte, conc, S.fault); S.i = 0; S.t = 0; S.running = true; S.res = null;
+  molMat.color.setHex(S.analyte === "h2o2" ? 0xff8a3d : 0xa855f7);
+  for (const id of ["rH", "rE", "rW"]) document.getElementById(id).textContent = "…";
+  document.getElementById("rS").textContent = "Sweeping";
+}
+const sgn = (v, d) => (v >= 0 ? "+" : "-") + Math.abs(v).toFixed(d);
+function finishSweep() {
+  S.running = false; S.res = analyse(S.pts, S.analyte);
+  const r = S.res, bad = r.status !== "OK";
+  document.getElementById("rH").textContent = r.status === "NO SIGNAL" ? "–" : sgn(r.height, 2) + " µA";
+  document.getElementById("rE").textContent = r.status === "NO SIGNAL" ? "–" : sgn(r.Ep, 3) + " V";
+  document.getElementById("rW").textContent = r.status === "NO SIGNAL" ? "–" : Math.round(r.fwhm) + " mV";
+  const rs = document.getElementById("rS");
+  rs.textContent = bad ? r.status.charAt(0) + r.status.slice(1).toLowerCase() + " (invalid)" : "OK, sent to Pi 5";
+  rs.style.color = bad ? "#c2410c" : "";
+  faultChips.forEach((x) => x.classList.remove("on"));
+}
+
+// The live monitor: a 1-bit pixel screen, thresholded to green.
+const mon = document.getElementById("mon"), mg = mon.getContext("2d");
+const mlo = document.createElement("canvas"); mlo.width = 256; mlo.height = 128;
+const ml = mlo.getContext("2d", { willReadFrequently: true });
+const mImg = mg.createImageData(256, 128);
+function MT(text, x, y, size = 12, align = "left") { ml.font = `bold ${size}px ui-monospace, Consolas, monospace`; ml.textAlign = align; ml.fillText(text, x, y); }
+const fmtAx = (v) => (Math.abs(v) >= 10 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toFixed(2));
+function paintMonitor(now) {
+  ml.fillStyle = "#000"; ml.fillRect(0, 0, 256, 128);
+  ml.fillStyle = ml.strokeStyle = "#fff"; ml.lineWidth = 1;
+  const blink = Math.floor(now / 300) % 2;
+  const live = S.pts.slice(0, S.i);
+  const liveSat = live.some((p) => Math.abs(p[1]) >= SAT - 1e-9);
+  const status = S.res ? S.res.status : S.running ? (liveSat ? "SATURATED" : "SWEEP") : "READY";
+  MT(S.analyte === "h2o2" ? "H2O2 DPV" : "NITRATE DPV", 2, 10, 10);
+  if (!(status !== "OK" && status !== "SWEEP" && status !== "READY" && blink)) MT(status, 254, 10, 10, "right");
+  const X0 = 30, X1 = 252, Y0 = 17, Y1 = 90;
+  ml.fillRect(X0, Y0, 1, Y1 - Y0 + 1); ml.fillRect(X0, Y1, X1 - X0, 1);
+  if (!S.pts.length) { MT("PRESS START SWEEP", 141, 58, 11, "center"); }
+  else {
+    let lo = 0, hi = 0;
+    for (const p of S.pts) { lo = Math.min(lo, p[1]); hi = Math.max(hi, p[1]); }
+    if (hi - lo < 0.05) { hi = Math.max(hi, 0.025); lo = Math.min(lo, -0.025); }
+    const pad = (hi - lo) * 0.08; hi += pad; lo -= pad;
+    const Y = (v) => Y1 - 2 - ((v - lo) / (hi - lo)) * (Y1 - Y0 - 4), X = (k) => X0 + 2 + (k / (NPTS - 1)) * (X1 - X0 - 4);
+    MT(fmtAx(hi), X0 - 2, Y0 + 6, 8, "right"); MT(fmtAx(lo), X0 - 2, Y1, 8, "right"); MT("uA", 2, Y0 + 30, 8);
+    const yz = Math.round(Y(0)); for (let x = X0 + 2; x < X1; x += 4) ml.fillRect(x, yz, 2, 1);
+    if (Math.abs(SAT) < hi || -SAT > lo) {                                   // the clip limits, when in range
+      for (const lim of [SAT, -SAT]) if (lim < hi && lim > lo) for (let x = X0 + 2; x < X1; x += 8) ml.fillRect(x, Math.round(Y(lim)), 4, 1);
+    }
+    ml.lineWidth = 1.5; ml.beginPath();
+    live.forEach((p, k) => (k ? ml.lineTo(X(k), Y(p[1])) : ml.moveTo(X(k), Y(p[1]))));
+    ml.stroke();
+    const E0 = S.pts[0][0], E1 = S.pts[NPTS - 1][0];
+    MT(sgn(E0, 1) + "V", X0, Y1 + 10, 9); MT(sgn(E1, 1) + "V", X1, Y1 + 10, 9, "right"); MT("E", (X0 + X1) / 2, Y1 + 10, 9, "center");
+    const cur = live[live.length - 1];
+    if (S.running && cur) {
+      const cx = Math.round(X(S.i - 1));
+      if (blink) for (let y = Y0; y < Y1; y += 3) ml.fillRect(cx, y, 1, 2);
+      ml.fillRect(cx - 2, Math.round(Y(cur[1])) - 2, 5, 5);
+    }
+    if (S.res && S.res.status !== "NO SIGNAL") { const k = S.pts.findIndex((p) => p[0] === S.res.Ep); ml.fillRect(Math.round(X(k)) - 1, Y0 - 1, 3, 4); }
+    if (cur) { MT("E " + sgn(cur[0], 3) + " V", 2, 113, 10); MT("I " + sgn(cur[1], 2) + " uA", 254, 113, 10, "right"); }
+    if (S.res) {
+      MT(S.res.status === "NO SIGNAL" ? "PEAK --" : "PEAK " + sgn(S.res.height, 2) + " uA", 2, 125, 10);
+      MT(S.res.status === "NO SIGNAL" ? "FLAT: NO CONTACT?" : "@ " + sgn(S.res.Ep, 3) + " V", 254, 125, 10, "right");
+    } else if (S.running) {
+      const sofar = live.reduce((m, p) => (Math.abs(p[1]) > Math.abs(m) ? p[1] : m), 0);
+      MT("PEAK " + sgn(sofar, 2) + " uA", 2, 125, 10); MT(`${S.i}/${NPTS}`, 254, 125, 10, "right");
+    }
+  }
+  const s = ml.getImageData(0, 0, 256, 128).data, o = mImg.data;
+  for (let i = 0; i < s.length; i += 4) { const on = s[i] > 110; o[i] = on ? 170 : 2; o[i + 1] = on ? 255 : 6; o[i + 2] = on ? 205 : 4; o[i + 3] = 255; }
+  mg.putImageData(mImg, 0, 0);
+}
+
+// ---------------------------------------------------------------------------------------------
+const tmpM = new THREE.Matrix4(), tmpP = V(0, 0, 0), tmpQ = new THREE.Quaternion(), tmpS = V(1, 1, 1);
+let last = performance.now(), pulse = 0, lift = 0, molFade = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing) {
+    if (S.running) {
+      S.t += dt;
+      const ni = Math.min(NPTS, Math.floor((S.t / SWEEP_S) * NPTS) + 1);
+      if (ni > S.i) { S.i = ni; pulse = 1; }
+      if (S.i >= NPTS && S.t >= SWEEP_S) finishSweep();
+    }
+    pulse *= Math.exp(-dt * 30);
+    // Lift the needle out of the leaf during a no-contact sweep.
+    const liftTo = S.running && S.fault === "lift" ? 1 : 0;
+    lift += (liftTo - lift) * Math.min(1, dt * 6);
+    needle.position.copy(TIP).addScaledVector(AXIS, lift * 4.5);
+    needle.updateMatrixWorld(true);
+    const flowing = S.running && S.fault !== "lift";
+    molFade += ((flowing ? 1 : 0) - molFade) * Math.min(1, dt * 4);
+    mols.visible = molFade > 0.02; molMat.opacity = 0.9 * molFade;
+    if (mols.visible) {
+      const tip = weTip();
+      molState.forEach((m, i) => {
+        m.t += dt * m.v;
+        if (m.t >= 1) spawn(m);
+        const e = m.t * m.t;
+        tmpP.copy(m.a).lerp(tip, e);
+        tmpS.setScalar(1 - 0.5 * e);
+        mols.setMatrixAt(i, tmpM.compose(tmpP, tmpQ, tmpS));
+      });
+      mols.instanceMatrix.needsUpdate = true;
+    }
+  }
+  glow.position.copy(weTip());
+  const amp = S.running && S.i ? Math.min(1, Math.abs(S.pts[S.i - 1][1]) / 6) : 0;
+  glow.material.opacity = S.running && S.fault !== "lift" ? 0.15 + 0.55 * pulse * (0.4 + 0.6 * amp) : 0;
+  glow.scale.setScalar(1 + 0.8 * pulse);
+  paintMonitor(now);
+  if (fly) {
+    const f = Math.min(1, (now - fly.s) / 700), e = f * f * (3 - 2 * f);
+    camera.position.lerpVectors(fly.p0, fly.p, e); controls.target.lerpVectors(fly.t0, fly.t, e);
+    if (f >= 1) fly = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+function resize() {
+  const r = view.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); labelRenderer.setSize(r.width, r.height);
+  camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view); resize();
+requestAnimationFrame(frame);
+setTimeout(() => { if (!S.pts.length) startSweep(); }, 800);
+</script>
+</body>
+</html>

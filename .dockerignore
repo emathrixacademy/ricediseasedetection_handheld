@@ -1,0 +1,4 @@
+# Railway builds the project page only: everything except deploy/site stays out
+# of the image.
+*
+!deploy/site/**
