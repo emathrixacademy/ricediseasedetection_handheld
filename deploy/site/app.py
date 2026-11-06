@@ -21,6 +21,8 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import wiring
+
 HERE = Path(__file__).resolve().parent
 COMMIT = os.environ.get("RAILWAY_GIT_COMMIT_SHA", "")[:7]
 BOM_CSV = HERE / "bom.csv"
@@ -68,11 +70,11 @@ PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><title>{title}</title>
 <meta name="description" content="{desc}">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3C9 9 6 15 6 20a10 10 0 0 0 20 0c0-5-3-11-10-17z' fill='%231f7a4a'/%3E%3C/svg%3E">
-<style>{css}</style></head><body><main class="{cls}">{body}</main></body></html>"""
+<style>{css}{extra}</style></head><body><main class="{cls}">{body}</main></body></html>"""
 
 
-def page(title: str, body: str, desc: str = "", wide: bool = False) -> str:
-    return PAGE.format(title=html.escape(title), desc=html.escape(desc), css=CSS,
+def page(title: str, body: str, desc: str = "", wide: bool = False, extra: str = "") -> str:
+    return PAGE.format(title=html.escape(title), desc=html.escape(desc), css=CSS, extra=extra,
                        body=body, cls="wide" if wide else "")
 
 
@@ -104,6 +106,7 @@ def home() -> str:
         ("Display", "2.4&Prime; colour TFT, 240 &times; 320, three buttons"),
         ("Power", "3.7 V lithium battery, 5 V / 5 A converter, solar panel on top"),
     ])
+    wiring_cards = "".join(_card(f"/wiring#{a}", t, "") for a, t, *_ in wiring.sections())
     return page("Rice Plant Health Scanner", f"""<h1>Rice Plant Health Scanner</h1>
 <p class="muted">Built by eMathrix Technologies{version}</p>
 <p class="note"><b>Research prototype.</b> A handheld scanner that checks a rice plant in the
@@ -135,6 +138,13 @@ biosensor curves, the seven curve features, each model's answer and the fused di
 electrochemical reading, the AI models, how the three are combined, and the checks along the
 way.</div>
 
+<h2>Wiring and schematics</h2>
+<a class="big" href="/wiring">Open the wiring schematics</a>
+<div class="box">A drawing, a pin-by-pin table and notes for every part: power, the Pi 5
+header, the TFT, cameras and AI accelerator, the Pi-to-ESP32 link, the ESP32 pins, buttons,
+the I&sup2;C bus, the potentiostat and the electrodes. Printable from the browser.</div>
+<div class="cards" style="margin-top:10px">{wiring_cards}</div>
+
 <h2>What it detects</h2>
 <div class="cards">{classes}</div>
 
@@ -151,6 +161,7 @@ CSV for Excel.</div>
 <li><a href="/biosensor">3D biosensor</a></li>
 <li><a href="/sim">Scanner simulation</a></li>
 <li><a href="/process">How it works</a></li>
+<li><a href="/wiring">Wiring schematics of every part</a></li>
 <li><a href="/bom">Bill of materials</a> &middot; <a href="/bom.csv">CSV</a></li></ul>
 <p class="muted">eMathrix Technologies &middot; Block 6 Lot 28 Katapatan Main Road, Banaybanay,
 Cabuyao City, Laguna</p>""", "Handheld rice plant health scanner: RGB and near-infrared imaging, "
@@ -270,6 +281,39 @@ research prototype</p>""", "How the rice plant health scanner works: imaging, th
 
 
 # --------------------------------------------------------------------------------------------
+# Wiring
+
+
+def wiring_page() -> str:
+    secs = wiring.sections()
+    toc = "".join(f'<li><a href="#{a}">{html.escape(t)}</a></li>' for a, t, *_ in secs)
+    parts = []
+    for anchor, title, intro, drawing, leg, table, notes in secs:
+        notes_html = "".join(f"<li>{html.escape(n)}</li>" for n in notes)
+        parts.append(f"""<section class="part-sec" id="{anchor}"><h2>{html.escape(title)}</h2>
+<p>{html.escape(intro)}</p>{leg}{drawing}{table}
+<ul class="muted">{notes_html}</ul>
+<p class="noprint muted"><a href="#top">&uarr; Contents</a></p></section>""")
+    bring = "".join(f"<tr><td>{a}</td><td>{html.escape(b)}</td><td>{html.escape(c)}</td></tr>"
+                    for a, b, c in wiring.BRINGUP)
+    return page("Rice Scanner Wiring", f"""<p class="noprint"><a href="/">&larr; Project page</a></p>
+<h1 id="top">Wiring schematics</h1>
+<p class="muted">Every part of the handheld scanner: drawing, pin-by-pin table and notes.
+Print this page (Ctrl+P) for a paper copy.</p>
+<p class="note"><b>Before power-up:</b> one common (star) ground for the Pi 5, ESP32, boost
+converter and front end; all logic is 3.3 V; check every connection with a multimeter.</p>
+<h2>Contents</h2><ol class="toc">{toc}<li><a href="#bringup">Bring-up checklist</a></li></ol>
+{''.join(parts)}
+<section class="part-sec" id="bringup"><h2>Bring-up checklist</h2>
+<p>Power the scanner up in this order and check each result before the next step.</p>
+<div class="wrap"><table class="pins"><tr><th>Step</th><th>Action</th><th>Expected</th></tr>{bring}</table></div>
+</section>
+<p class="muted" style="margin-top:2em">eMathrix Technologies &middot; Rice Plant Health Scanner
+research prototype</p>""", "Wiring schematics of every part of the rice plant health scanner.",
+                wide=True, extra=wiring.WIRING_CSS)
+
+
+# --------------------------------------------------------------------------------------------
 # Bill of materials
 
 
@@ -352,6 +396,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, f.read_bytes())
         if path == "/process":
             return self._send(200, process())
+        if path == "/wiring":
+            return self._send(200, wiring_page())
         if path == "/bom":
             return self._send(200, bom())
         if path == "/bom.csv":
