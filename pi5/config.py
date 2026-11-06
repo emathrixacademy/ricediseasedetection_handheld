@@ -27,10 +27,39 @@ IMAGE_SIZE = (224, 224)
 NORM_MEAN = [0.485, 0.456, 0.406]
 NORM_STD = [0.229, 0.224, 0.225]
 
-# Model artifact paths (may not exist in a fresh checkout -> mock fallback used)
-RGB_MODEL_PATH = os.getenv("RGB_MODEL_PATH", "models/rgb_mobilenetv3.pt")
-NIR_MODEL_PATH = os.getenv("NIR_MODEL_PATH", "models/nir_mobilenetv3.pt")
-HAILO_HEF_PATH = os.getenv("HAILO_HEF_PATH", "models/rice_disease.hef")
+# Model artifacts. Each classifier loads the first file that exists, in this
+# order: the compiled Hailo-8L .hef (runs on the accelerator), the .onnx
+# (CPU fallback), then the PyTorch .pt from training. RGB_MODEL_PATH /
+# NIR_MODEL_PATH force one file. None found -> random mock, flagged as such.
+MODEL_DIR = os.getenv("MODEL_DIR", "pi5/models")
+RGB_MODEL_CANDIDATES = [os.path.join(MODEL_DIR, f) for f in
+                        ("rgb_model.hef", "rgb_model.onnx", "rgb_model.pt")]
+NIR_MODEL_CANDIDATES = [os.path.join(MODEL_DIR, f) for f in
+                        ("nir_model.hef", "nir_model.onnx", "nir_model.pt")]
+RGB_MODEL_PATH = os.getenv("RGB_MODEL_PATH")
+NIR_MODEL_PATH = os.getenv("NIR_MODEL_PATH")
+HAILO_HEF_PATH = os.path.join(MODEL_DIR, "rgb_model.hef")  # hailo_inference demo
+
+# NIR model input: one channel, normalised like training/train_nir.py.
+NIR_NORM_MEAN = 0.45
+NIR_NORM_STD = 0.225
+
+# ---------------------------------------------------------------------------
+# Biosensor (DPV) -- must match esp32/src/config.h
+# ---------------------------------------------------------------------------
+# Analytes the ESP32 can sweep. polarity +1 = oxidation peak (positive
+# current), -1 = reduction peak. NO3 settings are provisional (methods 8.4).
+ANALYTES = {
+    "H2O2": {"command": "CMD:SCAN:H2O2", "polarity": 1, "label": "H2O2"},
+    "NO3": {"command": "CMD:SCAN:NO3", "polarity": -1, "label": "Nitrate"},
+}
+# What a scan measures, cycled with the MODE button: one analyte or both.
+ANALYTE_MODES = [("H2O2",), ("NO3",), ("H2O2", "NO3")]
+BIOSENSOR_FULL_SCALE_UA = 16.5   # 1.65 V / 100 kOhm, see WIRING.md section 4
+# Calibration from plants of confirmed condition; until it exists the
+# biosensor is recorded but left out of fusion (methods 9.7).
+BIOSENSOR_CALIBRATION_PATH = os.getenv(
+    "BIOSENSOR_CALIBRATION_PATH", os.path.join(MODEL_DIR, "biosensor_calibration.json"))
 
 # Database
 DATABASE_URL = os.getenv(
@@ -54,19 +83,32 @@ BATTERY_NOMINAL_V = 3.7     # pack nominal
 BATTERY_MIN_V = 3.0         # treated as empty; below this the pack is damaged
 BATTERY_MAX_V = 4.2         # full charge
 BATTERY_DIVIDER_RATIO = 2.0  # must match BATT_DIVIDER_RATIO in esp32/src/config.h
+BATTERY_LOW_V = float(os.getenv("BATTERY_LOW_V", "3.4"))  # warn below this
+BATTERY_POLL_S = 60          # how often the Pi asks the ESP32 for the voltage
 
 # ---------------------------------------------------------------------------
 # GPIO pin configuration (BCM numbering)
 # ---------------------------------------------------------------------------
 
-# HD44780 1604 (16x4) character LCD via PCF8574 I2C backpack.
-# Replaces the earlier ILI9341/SPI panel -- SPI0 pins are now free.
-# Backpack SDA -> GPIO2 (pin 3), SCL -> GPIO3 (pin 5), VCC -> 5V, GND -> GND.
-# Backpacks usually ship at 0x27; some are 0x3F. Verify with `i2cdetect -y 1`.
-LCD_I2C_BUS = int(os.getenv("LCD_I2C_BUS", "1"))
-LCD_I2C_ADDR = int(os.getenv("LCD_I2C_ADDR", "0x27"), 16)
-LCD_COLS = 16
-LCD_ROWS = 4
+# 2.4" TFT, ILI9341 controller, 240 x 320, on hardware SPI0 (write-only).
+# VCC -> 3.3 V (pin 1), GND -> GND, SDI/MOSI -> GPIO10 (pin 19),
+# SCK -> GPIO11 (pin 23), CS -> GPIO8/CE0 (pin 24), DC -> GPIO25 (pin 22),
+# RESET -> GPIO24 (pin 18), LED -> backlight switch driven by GPIO18 (pin 12).
+# The backlight draws more than a GPIO pin may source: GPIO18 drives an
+# N-MOSFET (or NPN) low-side switch, it never powers the LED pin directly.
+# SDO/MISO is not used. The module's touch pins (T_*) are left unconnected.
+LCD_SPI_PORT = 0
+LCD_SPI_DEVICE = 0           # CE0 = GPIO8
+LCD_DC = 25                  # data / command select
+LCD_RST = 24                 # reset
+LCD_BL = 18                  # backlight switch gate (PWM capable)
+LCD_SPI_HZ = int(os.getenv("LCD_SPI_HZ", "32000000"))
+# The ILI9341 is natively 320 x 240 (landscape); luma's rotate=1 turns it to
+# portrait. Use 3 if the panel is mounted the other way up; 0 or 2 = landscape.
+LCD_ROTATE = int(os.getenv("LCD_ROTATE", "1"))
+LCD_WIDTH, LCD_HEIGHT = (240, 320) if LCD_ROTATE % 2 else (320, 240)
+# Off the Pi the driver draws each screen into this PNG instead.
+LCD_PREVIEW_PATH = os.getenv("LCD_PREVIEW_PATH", "pi5/data/lcd_preview.png")
 
 # UART link to the ESP32 companion MCU
 UART_TXD = 14                    # Pi TXD -> ESP32 RX (GPIO14)
@@ -81,6 +123,13 @@ UART_BAUD = int(os.getenv("UART_BAUD", "115200"))
 RGB_CAMERA_NUM = 0                   # RGB camera on CSI port 0
 NIR_CAMERA_NUM = 1                   # NIR / NoIR camera on CSI port 1
 
+# NDVI from the filtered NoIR camera. With a red-blocking (blue/"infragram")
+# filter the sensor's red channel sees NIR and blue sees visible light: set
+# NIR=0, VIS=2. With a blue-blocking (red) filter it is the other way round,
+# the default here: NIR in blue (2), visible red in red (0).
+NDVI_NIR_CHANNEL = int(os.getenv("NDVI_NIR_CHANNEL", "2"))
+NDVI_VIS_CHANNEL = int(os.getenv("NDVI_VIS_CHANNEL", "0"))
+
 INFERENCE_RESOLUTION = (224, 224)    # size fed to the models
 CAPTURE_RESOLUTION = (640, 480)      # native capture size
 
@@ -89,13 +138,6 @@ CAPTURE_RESOLUTION = (640, 480)      # native capture size
 # ---------------------------------------------------------------------------
 
 IMAGE_DIR = "pi5/data/images"
-MODEL_DIR = "pi5/models"
-
-# HEF (Hailo) primary targets plus ONNX fallbacks
-RGB_MODEL_PATH_HEF = os.path.join(MODEL_DIR, "rgb_model.hef")
-RGB_MODEL_PATH_ONNX = os.path.join(MODEL_DIR, "rgb_model.onnx")
-NIR_MODEL_PATH_HEF = os.path.join(MODEL_DIR, "nir_model.hef")
-NIR_MODEL_PATH_ONNX = os.path.join(MODEL_DIR, "nir_model.onnx")
 
 # Late-fusion scalar weights (dict form provided above as FUSION_WEIGHTS)
 FUSION_WEIGHT_RGB = FUSION_WEIGHTS["rgb"]

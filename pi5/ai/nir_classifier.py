@@ -4,33 +4,50 @@ import time
 
 import numpy as np
 
-from .model_loader import load_model
+from .model_loader import load_model, probs_in_config_order, resolve_model_path
 
 try:
-    from config import CLASSES, IMAGE_SIZE, NIR_MODEL_PATH
+    from config import (CLASSES, IMAGE_SIZE, NDVI_NIR_CHANNEL, NDVI_VIS_CHANNEL,
+                        NIR_MODEL_CANDIDATES, NIR_MODEL_PATH, NIR_NORM_MEAN,
+                        NIR_NORM_STD)
 except ImportError:  # pragma: no cover
-    from pi5.config import CLASSES, IMAGE_SIZE, NIR_MODEL_PATH
+    from pi5.config import (CLASSES, IMAGE_SIZE, NDVI_NIR_CHANNEL,
+                            NDVI_VIS_CHANNEL, NIR_MODEL_CANDIDATES,
+                            NIR_MODEL_PATH, NIR_NORM_MEAN, NIR_NORM_STD)
 
 
-def _softmax(logits):
-    logits = np.asarray(logits, dtype=np.float32).ravel()
-    shifted = logits - np.max(logits)
-    exp = np.exp(shifted)
-    return exp / np.sum(exp)
+def ndvi_map(frame):
+    """Per-pixel NDVI from a filtered NoIR frame, float32 in [-1, 1].
+
+    NDVI = (NIR - VIS) / (NIR + VIS). Which colour channel carries the NIR
+    and which the visible band depends on the filter fitted to the NoIR
+    camera; see NDVI_NIR_CHANNEL / NDVI_VIS_CHANNEL in config.py.
+    """
+    arr = np.asarray(frame, dtype=np.float32)
+    if arr.ndim < 3 or arr.shape[-1] < 3:
+        return np.zeros(arr.shape[:2], dtype=np.float32)
+    nir = arr[..., NDVI_NIR_CHANNEL]
+    vis = arr[..., NDVI_VIS_CHANNEL]
+    denom = nir + vis
+    denom[denom == 0] = 1e-6
+    return np.clip((nir - vis) / denom, -1.0, 1.0).astype(np.float32)
 
 
 class NIRClassifier:
-    """Classify near-infrared imagery and derive an NDVI vegetation index.
+    """Classify NoIR images and derive an NDVI vegetation index.
 
-    Input images are expected with at least two channels ordered as
-    (NIR, RED, ...) or a 2-channel (NIR, RED) array. NDVI = (NIR-RED)/(NIR+RED).
+    The model is the single-channel network from training/train_nir.py: the
+    frame is converted to greyscale (ITU-R 601 weights, as torchvision's
+    Grayscale) and normalised with NIR_NORM_MEAN / NIR_NORM_STD.
     """
 
-    def __init__(self, model_path=NIR_MODEL_PATH):
-        self.model = load_model(model_path)
+    def __init__(self, model_path=None):
+        path = resolve_model_path(model_path or NIR_MODEL_PATH, NIR_MODEL_CANDIDATES)
+        self.model = load_model(path)
         self.classes = CLASSES
+        self.backend = getattr(self.model, "backend", "mock")
         # True when load_model fell back to random logits.
-        self.mock = getattr(self.model, "backend", "mock") == "mock"
+        self.mock = self.backend == "mock"
 
     @staticmethod
     def _resize(arr, size):
@@ -40,35 +57,22 @@ class NIRClassifier:
         return arr[np.ix_(yi, xi)]
 
     def compute_ndvi(self, img):
-        """Return mean NDVI in [-1, 1] from an (H, W, >=2) array (NIR, RED)."""
-        arr = np.asarray(img, dtype=np.float32)
-        if arr.ndim < 3 or arr.shape[-1] < 2:
-            return 0.0
-        nir = arr[..., 0]
-        red = arr[..., 1]
-        denom = nir + red
-        denom[denom == 0] = 1e-6
-        ndvi = (nir - red) / denom
-        return float(np.clip(np.mean(ndvi), -1.0, 1.0))
+        """Mean NDVI of the frame, in [-1, 1]."""
+        return float(np.mean(ndvi_map(img)))
 
     def preprocess(self, img):
-        """Resize to model input and produce an NCHW float32 tensor."""
+        """Greyscale, resize, normalise; return a (1, 1, H, W) float32 tensor."""
         arr = np.asarray(img, dtype=np.float32)
-        if arr.ndim == 2:
-            arr = arr[..., np.newaxis]
+        if arr.ndim == 3 and arr.shape[-1] >= 3:
+            arr = 0.299 * arr[..., 0] + 0.587 * arr[..., 1] + 0.114 * arr[..., 2]
+        elif arr.ndim == 3:
+            arr = arr[..., 0]
         if arr.shape[:2] != IMAGE_SIZE:
             arr = self._resize(arr, IMAGE_SIZE)
-
-        # Pad/trim to 3 channels for a shared backbone.
-        if arr.shape[-1] < 3:
-            pad = np.repeat(arr[..., :1], 3 - arr.shape[-1], axis=-1)
-            arr = np.concatenate([arr, pad], axis=-1)
-        arr = arr[..., :3]
-
         if arr.max() > 1.0:
             arr = arr / 255.0
-        arr = np.transpose(arr, (2, 0, 1))[np.newaxis, ...]
-        return arr.astype(np.float32)
+        arr = (arr - NIR_NORM_MEAN) / NIR_NORM_STD
+        return arr[np.newaxis, np.newaxis, ...].astype(np.float32)
 
     def predict(self, img):
         """Run inference; return prediction dict including ndvi_value."""
@@ -76,15 +80,16 @@ class NIRClassifier:
         ndvi = self.compute_ndvi(img)
         tensor = self.preprocess(img)
         logits = self.model(tensor)
-        probs = _softmax(logits)
-        idx = int(np.argmax(probs))
+        probs = probs_in_config_order(logits, self.model.class_names, self.classes)
+        pred = max(probs, key=probs.get)
         elapsed_ms = (time.perf_counter() - start) * 1000.0
 
         return {
-            "prediction": self.classes[idx],
-            "confidence": float(probs[idx]),
-            "probs": {c: float(p) for c, p in zip(self.classes, probs)},
+            "prediction": pred,
+            "confidence": probs[pred],
+            "probs": probs,
             "ndvi_value": round(ndvi, 4),
+            "backend": self.backend,
             "processing_time_ms": round(elapsed_ms, 2),
             "mock": self.mock,
         }
@@ -92,5 +97,5 @@ class NIRClassifier:
 
 if __name__ == "__main__":
     clf = NIRClassifier()
-    dummy = np.random.rand(224, 224, 2).astype(np.float32)
+    dummy = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
     print(clf.predict(dummy))

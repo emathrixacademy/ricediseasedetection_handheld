@@ -95,10 +95,14 @@ class BiosensorReading(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     session_id: Mapped[int] = mapped_column(ForeignKey("scan_sessions.id"))
+    analyte: Mapped[Optional[str]] = mapped_column(String(16))      # H2O2 | NO3
+    # OK | SATURATED | NO_SIGNAL | ERROR | TIMEOUT; only OK readings are fused.
+    status: Mapped[Optional[str]] = mapped_column(String(16))
+    features: Mapped[Optional[dict]] = mapped_column(JSONType)      # dpv_features
     dpv_peak_current_ua: Mapped[Optional[float]] = mapped_column(Float)
     dpv_peak_voltage_v: Mapped[Optional[float]] = mapped_column(Float)
     re_voltage_v: Mapped[Optional[float]] = mapped_column(Float)
-    raw_adc_values: Mapped[Optional[dict]] = mapped_column(JSONType)
+    raw_adc_values: Mapped[Optional[dict]] = mapped_column(JSONType)  # full curve
     reading_time_ms: Mapped[Optional[float]] = mapped_column(Float)
     captured_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

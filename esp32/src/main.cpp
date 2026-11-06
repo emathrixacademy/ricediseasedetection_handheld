@@ -39,17 +39,20 @@ static String afeFaultReason() {
     return "";
 }
 
-// Perform a DPV scan and report the result to the Pi.
-static void handleScan() {
+// Perform a DPV scan for one analyte and report the result to the Pi.
+// The reading carries its own validity status (OK / SATURATED / NO_SIGNAL);
+// the Pi decides what to do with an invalid one.
+static void handleScan(const DPVProfile& profile) {
     // Refuse to sweep with a dead front end rather than returning zeros.
     if (!afeReady) {
         uart.sendError("AFE_NOT_READY:" + afeFaultReason());
         return;
     }
 
-    DPVResult r = potentiostat.runDPV();
+    DPVResult r = potentiostat.runDPV(profile);
     if (r.ok) {
-        uart.sendBiosensor(r.peakCurrentUA, r.peakVoltageV, r.reVoltageV, r.rawJson);
+        uart.sendBiosensor(r.analyte, r.status, r.peakCurrentUA,
+                           r.peakVoltageV, r.reVoltageV, r.rawJson);
     } else {
         uart.sendError("DPV_FAILED");
     }
@@ -57,8 +60,10 @@ static void handleScan() {
 
 // Dispatch a single command line from the Pi.
 static void dispatch(const String& cmd) {
-    if (cmd == "CMD:SCAN") {
-        handleScan();
+    if (cmd == "CMD:SCAN" || cmd == "CMD:SCAN:H2O2") {
+        handleScan(DPV_H2O2);
+    } else if (cmd == "CMD:SCAN:NO3") {
+        handleScan(DPV_NO3);
     } else if (cmd == "CMD:BATTERY") {
         if (!adcReady) {
             uart.sendError("AFE_NOT_READY:ADC_INIT");

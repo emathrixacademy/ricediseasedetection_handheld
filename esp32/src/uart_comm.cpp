@@ -29,10 +29,15 @@ String UartComm::readCommand() {
     return "";
 }
 
-void UartComm::sendBiosensor(float peakCurrentUA, float peakVoltageV,
+void UartComm::sendBiosensor(const char* analyte, const char* status,
+                             float peakCurrentUA, float peakVoltageV,
                              float reVoltageV, const String& rawJson) {
     Serial2.print("DATA:BIOSENSOR:");
-    Serial2.print(peakCurrentUA, 3);
+    Serial2.print(analyte);
+    Serial2.print(":");
+    Serial2.print(status);
+    Serial2.print(":");
+    Serial2.print(peakCurrentUA, 4);
     Serial2.print(",");
     Serial2.print(peakVoltageV, 4);
     Serial2.print(",");

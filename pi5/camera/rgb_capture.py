@@ -55,9 +55,14 @@ class RGBCapture:
             return np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
         return self._cam.capture_array("main")
 
-    def save(self, path):
-        """Capture a frame and save it to ``path``. Returns the array."""
-        frame = self.capture()
+    def save(self, path, frame=None):
+        """Save ``frame`` (or a fresh capture) to ``path``. Returns the array.
+
+        Pass the frame that was classified, so the stored image is the one
+        the diagnosis was made from.
+        """
+        if frame is None:
+            frame = self.capture()
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         if _PIL_AVAILABLE:
             Image.fromarray(frame).save(path)

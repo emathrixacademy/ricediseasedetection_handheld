@@ -55,3 +55,6 @@ Thumbs.db
 # Internal / IP-sensitive documentation (kept locally, not published)
 docs/*.pdf
 docs/SYSTEM_REPORT.md
+
+# TFT driver preview frame (written off the Pi)
+pi5/data/lcd_preview.png

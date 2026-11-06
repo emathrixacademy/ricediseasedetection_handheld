@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS nir_scans (
 CREATE TABLE IF NOT EXISTS biosensor_readings (
     id                   SERIAL PRIMARY KEY,
     session_id           INT REFERENCES scan_sessions(id),
+    analyte              VARCHAR(16),
+    status               VARCHAR(16),
+    features             JSONB,
     dpv_peak_current_ua  FLOAT,
     dpv_peak_voltage_v   FLOAT,
     re_voltage_v         FLOAT,
@@ -45,6 +48,11 @@ CREATE TABLE IF NOT EXISTS biosensor_readings (
     reading_time_ms      FLOAT,
     captured_at          TIMESTAMP DEFAULT NOW()
 );
+
+-- Upgrade an existing database created before analyte/status/features.
+ALTER TABLE biosensor_readings ADD COLUMN IF NOT EXISTS analyte  VARCHAR(16);
+ALTER TABLE biosensor_readings ADD COLUMN IF NOT EXISTS status   VARCHAR(16);
+ALTER TABLE biosensor_readings ADD COLUMN IF NOT EXISTS features JSONB;
 
 -- Late-fusion final diagnoses.
 CREATE TABLE IF NOT EXISTS fused_diagnoses (

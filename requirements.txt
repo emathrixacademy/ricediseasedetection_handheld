@@ -23,8 +23,11 @@ psycopg2-binary>=2.9
 sqlalchemy>=2.0
 alembic>=1.12
 
-# Display — HD44780 1604 via PCF8574 I2C backpack
-RPLCD>=1.3
+# Display — 2.4" ILI9341 TFT on SPI0 (luma.lcd). On the Pi 5, rpi-lgpio stands in
+# for RPi.GPIO, which does not support the Pi 5's RP1 GPIO chip.
+luma.lcd>=2.11
+spidev>=3.6
+rpi-lgpio>=0.6 ; platform_machine == "aarch64"
 smbus2>=0.4
 
 # Serial

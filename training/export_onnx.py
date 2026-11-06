@@ -10,6 +10,7 @@ Usage::
 """
 
 import argparse
+import os
 import sys
 
 
@@ -27,6 +28,25 @@ def _force_utf8_stdout():
             pass
 
 
+def sidecar_path(model_path):
+    """``models/rgb_model.onnx`` -> ``models/rgb_model.classes.json``."""
+    return os.path.splitext(model_path)[0] + ".classes.json"
+
+
+def write_sidecar(output_path, class_names, in_channels, image_size):
+    """Record the output order next to the model.
+
+    ImageFolder numbers classes alphabetically, so output i of the network is
+    class_names[i] -- not the order in pi5/config.py. ONNX and HEF files do not
+    carry the names, so the Pi reads them from this file.
+    """
+    import json
+
+    with open(sidecar_path(output_path), "w", encoding="utf-8") as f:
+        json.dump({"class_names": list(class_names), "in_channels": in_channels,
+                   "image_size": image_size}, f, indent=2)
+
+
 def export(model_path, output_path, image_size=224, opset=13):
     import torch
 
@@ -41,6 +61,11 @@ def export(model_path, output_path, image_size=224, opset=13):
     model = build_model(backbone, num_classes, in_channels)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
+    if ckpt.get("class_names"):
+        write_sidecar(output_path, ckpt["class_names"], in_channels, image_size)
+    else:
+        print("[export] WARNING: checkpoint has no class_names; the Pi will "
+              "assume alphabetical (ImageFolder) order")
 
     dummy = torch.randn(1, in_channels, image_size, image_size)
     torch.onnx.export(

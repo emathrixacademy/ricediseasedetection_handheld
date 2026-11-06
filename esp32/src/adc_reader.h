@@ -14,8 +14,16 @@ public:
     // Returns true on success.
     bool begin();
 
-    // Working electrode current in microamps.
-    // TIA output voltage is referenced to virtual ground; current = (Vgnd - Vout) / Rf.
+    // Measured virtual ground (AIN3) in volts. updateVgnd() re-reads it; a
+    // sweep calls it once so every point uses the same value.
+    float vgnd() const { return _vgnd; }
+    float updateVgnd();
+
+    // TIA output in volts (AIN0).
+    float readTIAVolts();
+
+    // Working electrode current in microamps, anodic positive:
+    // I = (Vout - Vgnd) / Rf.
     float readWE();
 
     // Reference electrode potential in volts.
@@ -30,6 +38,7 @@ public:
 private:
     Adafruit_ADS1115 _ads;
     bool _ready;
+    float _vgnd;
 };
 
 #endif // ADC_READER_H

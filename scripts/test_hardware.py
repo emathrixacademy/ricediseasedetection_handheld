@@ -84,25 +84,25 @@ def check_i2c_adc():
         report("I2C / ADC", SKIP, str(exc))
 
 
-def check_lcd_i2c():
-    """1604 HD44780 LCD behind a PCF8574 I2C backpack (default 0x27)."""
-    try:
-        from smbus2 import SMBus  # type: ignore
-    except ImportError:
-        report("LCD I2C", SKIP, "smbus2 not installed")
+def check_tft():
+    """2.4" ILI9341 TFT on SPI0: the SPI device exists and a test screen draws."""
+    import os
+    if not os.path.exists("/dev/spidev0.0"):
+        report("TFT (SPI0)", SKIP,
+               "/dev/spidev0.0 missing -- enable SPI: sudo raspi-config nonint do_spi 0")
         return
     try:
-        from pi5.config import LCD_I2C_ADDR, LCD_I2C_BUS
-    except ImportError:
-        LCD_I2C_BUS, LCD_I2C_ADDR = 1, 0x27
-    try:
-        with SMBus(LCD_I2C_BUS) as bus:
-            bus.read_byte(LCD_I2C_ADDR)
-        report(f"LCD I2C (0x{LCD_I2C_ADDR:02X})", PASS, "backpack responded")
+        from pi5.display import LCDDriver
     except Exception as exc:  # noqa: BLE001
-        report("LCD I2C", SKIP,
-               f"no device at 0x{LCD_I2C_ADDR:02X} on bus {LCD_I2C_BUS}: {exc}"
-               f" (some backpacks use 0x3F -- run i2cdetect -y 1)")
+        report("TFT (SPI0)", SKIP, f"driver import failed: {exc}")
+        return
+    lcd = LCDDriver()
+    lcd.init()
+    if lcd.mock:
+        report("TFT (SPI0)", FAIL, "luma.lcd / lgpio missing or panel init failed")
+        return
+    lcd.show_status({"self-test": "TFT OK", "SPI": "CE0, 32 MHz"})
+    report("TFT (SPI0)", PASS, "test screen drawn -- check the panel shows it")
 
 
 def check_led():
@@ -127,7 +127,7 @@ def main():
     check_cameras()
     check_uart()
     check_i2c_adc()
-    check_lcd_i2c()
+    check_tft()
     check_led()
     print("=== Done ===")
     return 0

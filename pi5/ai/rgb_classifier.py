@@ -1,32 +1,29 @@
-"""RGB leaf-disease classifier (MobileNetV3-Small style)."""
+"""RGB leaf-disease classifier (MobileNetV3-Small, Hailo-8L when compiled)."""
 
 import time
 
 import numpy as np
 
-from .model_loader import load_model
+from .model_loader import load_model, probs_in_config_order, resolve_model_path
 
 try:
-    from config import CLASSES, IMAGE_SIZE, NORM_MEAN, NORM_STD, RGB_MODEL_PATH
+    from config import (CLASSES, IMAGE_SIZE, NORM_MEAN, NORM_STD,
+                        RGB_MODEL_CANDIDATES, RGB_MODEL_PATH)
 except ImportError:  # pragma: no cover
-    from pi5.config import CLASSES, IMAGE_SIZE, NORM_MEAN, NORM_STD, RGB_MODEL_PATH
-
-
-def _softmax(logits):
-    logits = np.asarray(logits, dtype=np.float32).ravel()
-    shifted = logits - np.max(logits)
-    exp = np.exp(shifted)
-    return exp / np.sum(exp)
+    from pi5.config import (CLASSES, IMAGE_SIZE, NORM_MEAN, NORM_STD,
+                            RGB_MODEL_CANDIDATES, RGB_MODEL_PATH)
 
 
 class RGBClassifier:
     """Classify rice leaf RGB images into one of the disease CLASSES."""
 
-    def __init__(self, model_path=RGB_MODEL_PATH):
-        self.model = load_model(model_path)
+    def __init__(self, model_path=None):
+        path = resolve_model_path(model_path or RGB_MODEL_PATH, RGB_MODEL_CANDIDATES)
+        self.model = load_model(path)
         self.classes = CLASSES
+        self.backend = getattr(self.model, "backend", "mock")
         # True when load_model fell back to random logits.
-        self.mock = getattr(self.model, "backend", "mock") == "mock"
+        self.mock = self.backend == "mock"
 
     def preprocess(self, img):
         """Resize to 224x224, scale to [0,1], normalize, return NCHW float32."""
@@ -35,6 +32,7 @@ class RGBClassifier:
         # Basic center/resize handling for common shapes.
         if arr.ndim == 2:  # grayscale -> 3 channels
             arr = np.stack([arr] * 3, axis=-1)
+        arr = arr[..., :3]
         if arr.shape[:2] != IMAGE_SIZE:
             arr = self._resize(arr, IMAGE_SIZE)
 
@@ -62,14 +60,15 @@ class RGBClassifier:
         start = time.perf_counter()
         tensor = self.preprocess(img)
         logits = self.model(tensor)
-        probs = _softmax(logits)
-        idx = int(np.argmax(probs))
+        probs = probs_in_config_order(logits, self.model.class_names, self.classes)
+        pred = max(probs, key=probs.get)
         elapsed_ms = (time.perf_counter() - start) * 1000.0
 
         return {
-            "prediction": self.classes[idx],
-            "confidence": float(probs[idx]),
-            "probs": {c: float(p) for c, p in zip(self.classes, probs)},
+            "prediction": pred,
+            "confidence": probs[pred],
+            "probs": probs,
+            "backend": self.backend,
             "processing_time_ms": round(elapsed_ms, 2),
             "mock": self.mock,
         }

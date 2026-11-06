@@ -54,9 +54,14 @@ class NIRCapture:
             return np.random.randint(0, 256, (h, w, 3), dtype=np.uint8)
         return self._cam.capture_array("main")
 
-    def save(self, path):
-        """Capture a frame and save it to ``path``. Returns the array."""
-        frame = self.capture()
+    def save(self, path, frame=None):
+        """Save ``frame`` (or a fresh capture) to ``path``. Returns the array.
+
+        Pass the frame that was classified, so the stored image is the one
+        the diagnosis was made from.
+        """
+        if frame is None:
+            frame = self.capture()
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         if _PIL_AVAILABLE:
             Image.fromarray(frame).save(path)
@@ -65,20 +70,12 @@ class NIRCapture:
         return frame
 
     def compute_ndvi(self, frame=None):
-        """Compute a normalised difference vegetation index map.
+        """Per-pixel NDVI map (float32, [-1, 1]); see ai.nir_classifier.ndvi_map."""
+        from ..ai.nir_classifier import ndvi_map
 
-        NDVI = (NIR - RED) / (NIR + RED). On a NoIR sensor the NIR signal is
-        approximated by the blue channel and RED by the red channel. Returns
-        a float32 HxW array in the range [-1, 1].
-        """
         if frame is None:
             frame = self.capture()
-        red = frame[:, :, 0].astype(np.float32)
-        nir = frame[:, :, 2].astype(np.float32)  # blue ch approximates NIR
-        denom = nir + red
-        denom[denom == 0] = 1e-6  # avoid divide-by-zero
-        ndvi = (nir - red) / denom
-        return ndvi.astype(np.float32)
+        return ndvi_map(frame)
 
     def close(self):
         if self._cam is not None:

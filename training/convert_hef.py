@@ -88,6 +88,13 @@ def _confirm_hef(output_path):
     return output_path
 
 
+def _copy_sidecar(onnx_path, output_path):
+    """Carry the class-order file (see export_onnx.write_sidecar) to the HEF."""
+    src = os.path.splitext(onnx_path)[0] + ".classes.json"
+    if os.path.isfile(src):
+        shutil.copyfile(src, os.path.splitext(output_path)[0] + ".classes.json")
+
+
 def convert(onnx_path, output_path, calib_dir=None, dry_run=False):
     """Drive the Hailo ONNX -> HEF conversion.
 
@@ -140,6 +147,7 @@ def convert(onnx_path, output_path, calib_dir=None, dry_run=False):
             cmd += ["--calib-path", calib_dir]
         rc = _run(cmd, dry_run)
         if rc == 0:
+            _copy_sidecar(onnx_path, output_path)
             return _confirm_hef(output_path)
         if rc is not None:
             print("hailomz compile failed; falling back to explicit steps.")
@@ -164,6 +172,7 @@ def convert(onnx_path, output_path, calib_dir=None, dry_run=False):
     if dry_run:
         print("[dry-run] no compiler was invoked and NO FILES WERE PRODUCED")
         return None
+    _copy_sidecar(onnx_path, output_path)
     return _confirm_hef(output_path)
 
 

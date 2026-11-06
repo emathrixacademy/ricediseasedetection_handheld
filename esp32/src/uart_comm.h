@@ -7,10 +7,11 @@
 // Raspberry Pi and the ESP32 over Serial2.
 //
 // Pi -> ESP32 commands:
-//   CMD:SCAN, CMD:LED:ON, CMD:LED:OFF, CMD:LED:BLINK, CMD:BATTERY, CMD:STATUS
+//   CMD:SCAN (= CMD:SCAN:H2O2), CMD:SCAN:NO3, CMD:LED:ON, CMD:LED:OFF, CMD:LED:BLINK, CMD:BATTERY, CMD:STATUS
 //
 // ESP32 -> Pi responses:
-//   DATA:BIOSENSOR:<peak_current_ua>,<peak_voltage_v>,<re_voltage_v>,<raw_json>
+//   DATA:BIOSENSOR:<analyte>:<status>:<peak_current_ua>,<peak_voltage_v>,<re_voltage_v>,<raw_json>
+//       analyte H2O2 | NO3, status OK | SATURATED | NO_SIGNAL
 //   DATA:BATTERY:<voltage_v>
 //   DATA:BUTTON:<1|2|3>
 //   DATA:STATUS:OK                    (only when every subsystem initialised)
@@ -27,7 +28,8 @@ public:
     String readCommand();
 
     // Response senders.
-    void sendBiosensor(float peakCurrentUA, float peakVoltageV,
+    void sendBiosensor(const char* analyte, const char* status,
+                       float peakCurrentUA, float peakVoltageV,
                        float reVoltageV, const String& rawJson);
     void sendBattery(float voltageV);
     void sendButton(uint8_t id);

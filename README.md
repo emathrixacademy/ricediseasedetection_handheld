@@ -15,9 +15,9 @@ biosensor** for in-field rice disease detection.
 |-----------|-----------|
 | Compute | Raspberry Pi 5 (4 GB) + Hailo-8L AI HAT (13 TOPS, PCIe) |
 | Cameras | RGB Camera Module 3 (CSI 0), NoIR / NIR Module 3 (CSI 1) |
-| Display | 1604A 16×4 HD44780 LCD (I2C, PCF8574 backpack @ 0x27) |
+| Display | 2.4" TFT, ILI9341, 240 × 320 colour (SPI0) |
 | MCU | ESP32 DevKit (potentiostat, ADC, buttons, LED) |
-| Biosensor | DIY potentiostat — MCP4725 DAC + MCP6002 TIA + ADS1115 16-bit ADC, three-electrode microneedle (WE / RE Ag/AgCl / CE) |
+| Biosensor | DIY potentiostat — MCP4725 DAC + MCP6004 (control amp, RE buffer, TIA, virtual-ground buffer) + ADS1115 16-bit ADC, three-electrode microneedle (WE / RE Ag/AgCl / CE) |
 | Power | LiPo + buck-boost 5V/5A + 20 W solar top-up |
 | Link | Pi 5 ↔ ESP32 over UART @ 115200 (Pi GPIO14/15 ↔ ESP32 GPIO16/17) |
 
@@ -26,7 +26,7 @@ biosensor** for in-field rice disease detection.
 ## Repository Layout
 
 ```
-pi5/         Raspberry Pi 5 Python — cameras, AI, fusion, LCD, UART, DB, Flask monitor
+pi5/         Raspberry Pi 5 Python — cameras, AI, fusion, TFT display, UART, DB, Flask monitor
 esp32/       ESP32 C++/Arduino — potentiostat DPV, ADS1115, buttons, LED, UART (PlatformIO)
 training/    Workstation model training — PyTorch → ONNX → HEF, dataset tooling
 docs/        WIRING.md, ARCHITECTURE.md, CAPTURE_GUIDE.md, schematic generator
@@ -89,13 +89,13 @@ python scripts/simulate.py         # hardware-in-the-loop simulation
 ## Signal Flow
 
 ```
-Plant Sap → Hydrogel → WE redox → MCP6002 TIA → ADS1115 → ESP32 DPV → UART ─┐
+Plant Sap → Hydrogel → WE redox → MCP6004 TIA → ADS1115 → ESP32 DPV → UART ─┐
 RGB Camera → Pi 5 CSI0 → Hailo-8L → disease classification ─────────────────┤
 NoIR Camera → Pi 5 CSI1 → NDVI + AI → stress classification ────────────────┤
                                                                             ↓
                                               Decision Fusion (RGB 0.5 / NIR 0.3 / Bio 0.2)
                                                                             ↓
-                                                    LCD result  +  PostgreSQL log
+                                                    TFT result  +  PostgreSQL log
 ```
 
 See [docs/WIRING.md](docs/WIRING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),

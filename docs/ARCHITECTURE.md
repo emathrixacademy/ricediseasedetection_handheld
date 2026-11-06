@@ -14,13 +14,13 @@ and an electrochemical biosensor. On-device AI runs on a Hailo-8L accelerator.
 
 | Component | Role |
 |-----------|------|
-| Raspberry Pi 5 | Main compute: cameras, AI orchestration, LCD, DB, Flask monitor |
+| Raspberry Pi 5 | Main compute: cameras, AI orchestration, TFT display, DB, Flask monitor |
 | Hailo-8L AI HAT | Neural inference accelerator (M.2 PCIe x1) |
 | ESP32 | Real-time C++: potentiostat control, ADC sampling, buttons, LED, UART |
 | RGB Camera Module 3 | Visible-light leaf imaging (CSI0) |
 | NoIR Camera Module 3 | NIR imaging for NDVI / stress (CSI1) |
 | Electrochemical biosensor | 3-electrode DPV cell for sap biomarkers |
-| I2C LCD (1604 HD44780) | Field UI / results display |
+| 2.4" TFT (ILI9341, 240 × 320, SPI0) | Field UI / results display |
 | Power subsystem | Solar → charge controller → LiPo → buck-boost |
 
 ## 3. Data Flow
@@ -33,7 +33,7 @@ Biosensor ─> ESP32 DPV ─(UART DATA:BIOSENSOR)─> Pi 5
                                                    │
                                             Late Fusion
                                                    │
-                              Final diagnosis ─> LCD + PostgreSQL
+                              Final diagnosis ─> TFT + PostgreSQL
 ```
 
 ### UART Protocol (115200 baud, text, newline-terminated)

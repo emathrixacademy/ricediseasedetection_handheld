@@ -1,4 +1,4 @@
-"""Display package: HD44780 1604 (16x4) I2C character LCD driver."""
+"""Display package: 2.4\" ILI9341 TFT (240 x 320, SPI0) driver."""
 
 from .lcd_driver import LCDDriver
 
