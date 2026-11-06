@@ -334,10 +334,18 @@ def peso(v: float) -> str:
     return f"&#8369;{v:,.2f}"
 
 
+# Contingency on the base build (A-G): 2.4 %, rounded so the total is a round figure.
+BOM_CONTINGENCY_PHP = 859.00
+BOM_CONTINGENCY_LABEL = "Contingency (2.4%)"
+
+
 def bom() -> str:
-    parts, total = [], 0.0
+    parts, base, spares = [], 0.0, 0.0
     for section, rows, sub in bom_sections():
-        total += sub
+        if section.startswith("H"):
+            spares += sub
+        else:
+            base += sub
         body = "".join(
             f"<tr><td>{html.escape(r['item'])}</td><td>{html.escape(r['specification'])}</td>"
             f'<td class="n">{float(r["qty"]):g}</td><td>{html.escape(r["unit"])}</td>'
@@ -349,12 +357,21 @@ def bom() -> str:
             '<th>Specification</th><th class="n">Qty</th><th>Unit</th><th class="n">Unit price</th>'
             f'<th class="n">Amount</th></tr>{body}<tr class="sub"><td colspan="5">Subtotal</td>'
             f'<td class="n">{peso(sub)}</td></tr></table></div>')
+    total = base + spares + BOM_CONTINGENCY_PHP
     date = time.strftime("%B %d, %Y").replace(" 0", " ")
+    summary = (
+        '<h2>Summary</h2><div class="wrap"><table><tr><th></th><th class="n">Amount</th></tr>'
+        f'<tr><td>Base build (A&ndash;G)</td><td class="n">{peso(base)}</td></tr>'
+        f'<tr><td>Spares and consumables (H)</td><td class="n">{peso(spares)}</td></tr>'
+        f'<tr><td>{BOM_CONTINGENCY_LABEL}</td><td class="n">{peso(BOM_CONTINGENCY_PHP)}</td></tr>'
+        f'<tr class="sub"><td>TOTAL, one scanner</td><td class="n">{peso(total)}</td></tr>'
+        "</table></div>")
     return page("Rice Scanner Bill of Materials", f"""<p><a href="/">&larr; Project page</a></p>
 <h1>Bill of materials</h1>
 <p class="muted">One handheld scanner &middot; prepared by eMathrix Technologies &middot; {date}
 &middot; <a href="/bom.csv">Download as CSV (opens in Excel)</a></p>
 {''.join(parts)}
+{summary}
 <p class="total">Total, one scanner: {peso(total)}</p>
 <p class="muted">Prices are estimates for budgeting (Philippine market, November 2026); confirm
 with the supplier before ordering.</p>""", "Parts list with estimated prices for one rice plant "

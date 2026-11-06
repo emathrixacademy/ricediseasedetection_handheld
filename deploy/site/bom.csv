@@ -1,37 +1,47 @@
 section,item,specification,qty,unit,unit_price_php
-A — Computing and AI,Raspberry Pi 5,4 GB RAM,1,pc,4800.00
-A — Computing and AI,Hailo-8L AI accelerator,"AI HAT+ for Raspberry Pi 5, 13 TOPS, M.2 PCIe",1,pc,4500.00
-A — Computing and AI,Active cooler,Raspberry Pi 5 active cooler,1,pc,350.00
-A — Computing and AI,microSD card,"64 GB, A2 class",1,pc,450.00
-B — Imaging,RGB camera,"Raspberry Pi Camera Module 3 (IMX708), CSI",1,pc,1800.00
-B — Imaging,NIR camera,"Raspberry Pi Camera Module 3 NoIR (IMX708, no IR-cut filter), CSI",1,pc,1900.00
-B — Imaging,NIR optical filter,Filter gel cut to the NoIR lens window (sets the NDVI channels),1,pc,250.00
-B — Imaging,Camera cables,"Pi 5 CSI cable, 22-to-15 pin, 200 mm",2,pc,150.00
-C — Display and controls,TFT display,"2.4 in ILI9341, 240 × 320, SPI, red PCB module",1,pc,450.00
-C — Display and controls,Backlight switch,"AO3401 P-MOSFET, 2N7002 N-MOSFET, 10 kΩ, 100 kΩ, 100 Ω",1,set,40.00
+A — Computing and AI,Raspberry Pi 5,4 GB RAM,1,pc,6250.00
+A — Computing and AI,Hailo-8L AI accelerator,"AI HAT+, 13 TOPS, M.2 PCIe",1,pc,7500.00
+A — Computing and AI,Active cooler,Pi 5 active cooler,1,pc,475.00
+A — Computing and AI,microSD card,"64 GB, A2 class",1,pc,575.00
+B — Imaging,RGB camera,"Camera Module 3 (IMX708), CSI",1,pc,3150.00
+B — Imaging,NIR camera,"Camera Module 3 NoIR, CSI",1,pc,2490.00
+B — Imaging,Red-NIR filter,Dual-band gel cut to NoIR lens window,1,pc,250.00
+B — Imaging,Camera cables,"22-to-15 pin, 200 mm",2,pc,150.00
+B — Imaging,Lens mounts and sealing,"Fixed dual-camera mount, gaskets",1,set,700.00
+C — Display and controls,TFT display,"2.4 in ILI9341, 240 × 320, SPI",1,pc,1100.00
+C — Display and controls,Backlight switch,"AO3401, 2N7002, resistors",1,set,40.00
 C — Display and controls,Push buttons,"12 mm momentary, SCAN / MODE / MENU",3,pc,15.00
-C — Display and controls,Status LED,"5 mm LED with 220 Ω resistor",1,set,10.00
-C — Display and controls,GPIO34 pull-up,"10 kΩ resistor (input-only pin, no internal pull-up)",1,pc,2.00
-D — Biosensor electronics,ESP32 DevKit,"ESP-WROOM-32, 38-pin",1,pc,350.00
-D — Biosensor electronics,DAC,"MCP4725 12-bit I2C module (0x60)",1,pc,180.00
-D — Biosensor electronics,ADC,"ADS1115 16-bit I2C module (0x49)",1,pc,250.00
-D — Biosensor electronics,Op-amp,"MCP6004 quad rail-to-rail, DIP-14, with socket",1,pc,120.00
-D — Biosensor electronics,Precision resistors,"100 kΩ 1% (TIA), 2 × 10 kΩ 1% (virtual ground), 2 × 100 kΩ 1% (battery), 10 kΩ, 1 kΩ",1,set,100.00
-D — Biosensor electronics,Capacitors,"100 pF (TIA), 10 nF (control amp), 100 nF × 4 (bypass)",1,set,40.00
+C — Display and controls,Status LED,5 mm LED with 220 Ω,1,set,10.00
+C — Display and controls,GPIO34 pull-up,10 kΩ (input-only pin),1,pc,2.00
+D — Biosensor electronics,ESP32 DevKit,"ESP-WROOM-32, 38-pin",1,pc,700.00
+D — Biosensor electronics,DAC,MCP4725 12-bit I2C (0x60),1,pc,180.00
+D — Biosensor electronics,ADC,ADS1115 16-bit I2C (0x49),1,pc,250.00
+D — Biosensor electronics,Op-amp,"MCP6004 quad RRIO, DIP-14 + socket",1,pc,120.00
+D — Biosensor electronics,Precision resistors,"100 kΩ 1% TIA, 2 × 10 kΩ, 2 × 100 kΩ, 10 kΩ, 1 kΩ",1,set,100.00
+D — Biosensor electronics,Capacitors,"100 pF, 10 nF, 4 × 100 nF",1,set,40.00
 D — Biosensor electronics,I2C pull-ups,4.7 kΩ,2,pc,2.00
-D — Biosensor electronics,Prototype board,"Perfboard 7 × 9 cm, pin headers",1,set,80.00
+D — Biosensor electronics,Prototype board,"Perfboard 7 × 9 cm, headers",1,pc,80.00
 D — Biosensor electronics,Shielded cable,"2-core shielded, electrode leads",2,m,80.00
 E — Electrodes and hydrogel delivery,Working electrode,Carbon fibre or gold wire,1,pc,300.00
 E — Electrodes and hydrogel delivery,Reference electrode,"Ag/AgCl wire, 0.5 mm",1,pc,600.00
 E — Electrodes and hydrogel delivery,Counter electrode,"Platinum wire, 0.3 mm, 50 mm",1,pc,1200.00
-E — Electrodes and hydrogel delivery,Needle housing,"Stainless-steel needle, 18 G, with JST electrode connector",1,set,150.00
-E — Electrodes and hydrogel delivery,Syringe,"10 mL luer-lock syringe, glass",2,pc,250.00
+E — Electrodes and hydrogel delivery,Needle housing,"Stainless needle 18 G, JST connector",1,set,150.00
+E — Electrodes and hydrogel delivery,Syringe,"10 mL luer-lock, glass",2,pc,250.00
 E — Electrodes and hydrogel delivery,κ-carrageenan,"Powder, 100 g (0.75% hydrogel)",1,pack,450.00
-F — Power,Battery,"3.7 V LiPo, 5000 mAh, with protection",1,pc,650.00
-F — Power,Solar panel,"6 V mini panel, as fitted on top (about 110 × 110 mm)",1,pc,350.00
+F — Power,Battery,"3.7 V LiPo, 5000 mAh, protected",1,pc,2200.00
+F — Power,Solar panel,"6 V mini panel, about 110 × 110 mm",1,pc,2000.00
 F — Power,Solar charge controller,1S Li-ion solar charger module,1,pc,150.00
-F — Power,Boost converter,"5 V / 5 A output from 1S (Pi 5 needs the full 5 A)",1,pc,450.00
-F — Power,Fuse and holder,"1 A, ESP32 5 V feed",1,set,40.00
-F — Power,Power switch,"SPST rocker",1,pc,30.00
-G — Body and assembly,Enclosure,"Pistol-grip body, moulded and painted",1,pc,1500.00
-G — Body and assembly,Wiring and hardware,"Wire, heat-shrink, JST connectors, screws, standoffs",1,set,300.00
+F — Power,Boost converter,5 V / 5 A from 1S,1,pc,600.00
+F — Power,Fuse and holder,"1 A, ESP32 feed",1,set,40.00
+F — Power,Power switch,SPST rocker,1,pc,30.00
+F — Power,Internal wiring,"Silicone wire, JST, heat-shrink",1,set,700.00
+G — Body and assembly,Enclosure,"Pistol-grip body, printed and finished",1,pc,1500.00
+G — Body and assembly,Hardware,"Screws, standoffs, inserts, fasteners",1,set,800.00
+H — Spares and build consumables,Spare ESP32 DevKit,ESP-WROOM-32,1,pc,700.00
+H — Spares and build consumables,Spare analog ICs,"MCP6004, MCP4725, ADS1115",1,set,550.00
+H — Spares and build consumables,Spare Ag/AgCl wire,Consumed during chloridizing trials,1,pc,600.00
+H — Spares and build consumables,Spare needle housings,"18 G, assembly loss",2,pc,150.00
+H — Spares and build consumables,Resistor and capacitor kit,1% bench assortment for gain trials,1,set,200.00
+H — Spares and build consumables,Build consumables,"Solder, flux, IPA, hookup wire, heat-shrink",1,set,350.00
+H — Spares and build consumables,Filament,Housing iterations,1,lot,500.00
+H — Spares and build consumables,Shipping and handling,"Multiple orders, imported parts",1,lot,500.00
